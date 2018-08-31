@@ -366,20 +366,10 @@ OUTPUT ruleExecOut
         irodsctl = IrodsController()
         server_config_filename = paths.server_config_path()
 
-        # Simple delay rule with a writeLine
-        rule_text = '''
-test_delay_with_output_param {{
-    delay("<PLUSET>0.1s</PLUSET>") {{
-        writeLine("serverLog", "delayed rule executed");
-    }}
-    *status = "rule queued";
-}}
-INPUT null
-OUTPUT *status
-'''.format(**locals())
         rule_file = 'test_delay_with_output_param__3906.r'
-        with open(rule_file, 'w') as f:
-            f.write(rule_text)
+        rule_string = rule_texts[self.plugin_name][self.class_name]['test_delay_block_with_output_param__3906']
+        with open(rule_file, 'wt') as f:
+            print(rule_string, file=f, end='')
 
         # load server_config.json to inject new settings
         with open(server_config_filename) as f:

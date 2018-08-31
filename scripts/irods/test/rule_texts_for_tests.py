@@ -140,6 +140,16 @@ acSetNumThreads() {
     writeLine("serverLog", "test_rule_engine_2309: get: acSetNumThreads oprType [$oprType]");
 }
 '''
+rule_texts['irods_rule_engine_plugin-irods_rule_language']['Test_Native_Rule_Engine_Plugin']['test_delay_block_with_output_param__3906'] = '''
+test_delay_with_output_param {
+    delay("<PLUSET>0.1s</PLUSET>") {
+        writeLine("serverLog", "delayed rule executed");
+    }
+    *status = "rule queued";
+}
+INPUT null
+OUTPUT *status
+'''
 
 #===== Test_Quotas =====
 
@@ -513,6 +523,14 @@ rule_texts['irods_rule_engine_plugin-python']['Test_Native_Rule_Engine_Plugin'][
 def acSetNumThreads(rule_args, callback, rei):
     opr_type = str(rei.doinp.oprType)
     callback.writeLine('serverLog', 'test_rule_engine_2309: get: acSetNumThreads oprType [' + str(opr_type) + ']')
+'''
+rule_texts['irods_rule_engine_plugin-python']['Test_Native_Rule_Engine_Plugin']['test_delay_block_with_output_param__3906'] = '''
+status = ''
+def main(rule_args, callback, rei):
+    callback.delayExec('<PLUSET>0.1s</PLUSET>', 'callback.writeLine("serverLog", "delayed rule executed")', '')
+    status = "rule queued"
+INPUT null
+OUTPUT status
 '''
 
 #===== Test_Quotas =====
