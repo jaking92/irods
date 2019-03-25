@@ -7660,7 +7660,6 @@ irods::error db_mod_user_op(
 
     if( *_new_value == '\0' && (
         strcmp( _option, "type"   ) == 0 ||
-        strcmp( _option, "zone"   ) == 0 ||
         strcmp( _option, "addAuth") == 0 ||
         strcmp( _option, "rmAuth" ) == 0 ) ) {
         return ERROR( CAT_INVALID_ARGUMENT, "new value is empty" );
@@ -7696,8 +7695,8 @@ irods::error db_mod_user_op(
         }
     }
 
-    std::string zone;
-    ret = getLocalZone( _ctx.prop_map(), &icss, zone );
+    std::string local_zone;
+    ret = getLocalZone( _ctx.prop_map(), &icss, local_zone );
     if ( !ret.ok() ) {
         return PASS( ret );
     }
@@ -7715,11 +7714,37 @@ irods::error db_mod_user_op(
         return ERROR( status, "Invalid username format" );
     }
     if ( zoneName[0] == '\0' ) {
-        rstrcpy( zoneName, zone.c_str(), NAME_LEN );
+        rstrcpy( zoneName, local_zone.c_str(), NAME_LEN );
     }
 
     if ( strcmp( _option, "type" ) == 0 ||
             strcmp( _option, "user_type_name" ) == 0 ) {
+        // Changing type to or from rodsgroup is not allowed
+        if (strcmp(_new_value, "rodsgroup") == 0) {
+            const auto err_msg{"Cannot change user type to rodsgroup."};
+            addRErrorMsg(&_ctx.comm()->rError, 0, err_msg);
+            return ERROR(CAT_INVALID_ARGUMENT, err_msg);
+        }
+        else {
+            char user_type_result[MAX_NAME_LEN]{};
+            std::vector<std::string> bindVars;
+            bindVars.push_back(userName2);
+            bindVars.push_back(zoneName);
+            status = cmlGetStringValueFromSql(
+                         "select R_USER_MAIN.user_type_name from R_USER_MAIN where R_USER_MAIN.user_name=? and R_USER_MAIN.zone_name=?",
+                         user_type_result, MAX_NAME_LEN, bindVars, &icss);
+            if (status < 0) {
+                const auto err_msg{(boost::format("Failed to determine user_type for [%s#%s].") % userName2 % zoneName).str().c_str()};
+                addRErrorMsg(&_ctx.comm()->rError, 0, err_msg);
+                return ERROR(status, err_msg);
+            }
+            else if (strcmp(user_type_result, "rodsgroup") == 0) {
+                const auto err_msg{"Cannot change user type for a rodsgroup."};
+                addRErrorMsg(&_ctx.comm()->rError, 0, err_msg);
+                return ERROR(CAT_INVALID_ARGUMENT, err_msg);
+            }
+        }
+
         char tsubSQL[MAX_SQL_SIZE];
         snprintf( tsubSQL, MAX_SQL_SIZE, "(select token_name from R_TOKN_MAIN where token_namespace='user_type' and token_name=?)" );
         cllBindVars[cllBindVarCount++] = _new_value;
@@ -7734,20 +7759,6 @@ irods::error db_mod_user_op(
         }
         auditId = AU_MOD_USER_TYPE;
         snprintf( auditComment, sizeof( auditComment ), "%s", _new_value );
-    }
-    if ( strcmp( _option, "zone" ) == 0 ||
-            strcmp( _option, "zone_name" ) == 0 ) {
-        snprintf( tSQL, MAX_SQL_SIZE, form1, "zone_name" );
-        cllBindVars[cllBindVarCount++] = _new_value;
-        cllBindVars[cllBindVarCount++] = myTime;
-        cllBindVars[cllBindVarCount++] = userName2;
-        cllBindVars[cllBindVarCount++] = zoneName;
-        if ( logSQL != 0 ) {
-            rodsLog( LOG_SQL, "chlModUser SQL 3" );
-        }
-        auditId = AU_MOD_USER_ZONE;
-        snprintf( auditComment, sizeof( auditComment ), "%s", _new_value );
-        snprintf( auditUserName, sizeof( auditUserName ), "%s", _user_name );
     }
     if ( strcmp( _option, "addAuth" ) == 0 ) {
         opType = 4;
@@ -7947,7 +7958,7 @@ irods::error db_mod_user_op(
     }
 
     status = cmlAudit1( auditId, _ctx.comm()->clientUser.userName,
-                        ( char* )zone.c_str(), auditUserName, auditComment, &icss );
+                        ( char* )local_zone.c_str(), auditUserName, auditComment, &icss );
     if ( status != 0 ) {
         rodsLog( LOG_NOTICE,
                  "chlModUser cmlAudit1 failure %d",
@@ -9020,8 +9031,8 @@ irods::error db_reg_user_re_op(
         }
     }
 
-    std::string zone;
-    ret = getLocalZone( _ctx.prop_map(), &icss, zone );
+    std::string local_zone;
+    ret = getLocalZone( _ctx.prop_map(), &icss, local_zone );
     if ( !ret.ok() ) {
         return PASS( ret );
     }
@@ -9032,7 +9043,7 @@ irods::error db_reg_user_re_op(
     }
     else {
         zoneForm = 0;
-        snprintf( userZone, sizeof( userZone ), "%s", zone.c_str() );
+        snprintf( userZone, sizeof( userZone ), "%s", local_zone.c_str() );
     }
 
     status = validateAndParseUserName( _user_info->userName, userName2, zoneName );
@@ -9068,6 +9079,13 @@ irods::error db_reg_user_re_op(
             }
             return ERROR( status, "get zone id failure" );
         }
+    }
+
+    if (0 == strcmp("rodsgroup", userTypeTokenName) &&
+        0 != strcmp(local_zone.c_str(), userZone)) {
+        const auto err_msg{"Remote zone groups are not allowed"};
+        addRErrorMsg(&_ctx.comm()->rError, 0, err_msg);
+        return ERROR(CAT_INVALID_ARGUMENT, err_msg);
     }
 
     if ( logSQL != 0 ) {
