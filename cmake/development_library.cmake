@@ -86,6 +86,7 @@ set(
   ${CMAKE_SOURCE_DIR}/lib/core/include/irods_string_tokenize.hpp
   ${CMAKE_SOURCE_DIR}/lib/core/include/irods_tcp_object.hpp
   ${CMAKE_SOURCE_DIR}/lib/core/include/irods_threads.hpp
+  ${CMAKE_SOURCE_DIR}/lib/core/include/irods_user_info.hpp
   ${CMAKE_SOURCE_DIR}/lib/core/include/irods_virtual_path.hpp
   ${CMAKE_SOURCE_DIR}/lib/core/include/lsUtil.h
   ${CMAKE_SOURCE_DIR}/lib/core/include/mcollUtil.h

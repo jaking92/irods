@@ -446,6 +446,7 @@ set(
   ${CMAKE_SOURCE_DIR}/lib/core/src/irods_c_api.cpp
   ${CMAKE_SOURCE_DIR}/lib/core/src/irods_client_api_table.cpp
   ${CMAKE_SOURCE_DIR}/lib/core/src/irods_client_negotiation.cpp
+  ${CMAKE_SOURCE_DIR}/lib/core/src/irods_user_info.cpp
   ${CMAKE_SOURCE_DIR}/lib/core/src/lsUtil.cpp
   ${CMAKE_SOURCE_DIR}/lib/core/src/mcollUtil.cpp
   ${CMAKE_SOURCE_DIR}/lib/core/src/miscUtil.cpp
