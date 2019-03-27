@@ -36,18 +36,21 @@ class Test_Igroupadmin(resource_suite.ResourceBase, unittest.TestCase):
     def test_atg(self):
         self.admin.assert_icommand(['iadmin', 'moduser', self.user_sessions[0].username, 'type', 'groupadmin'])
         try :
-            self.user_sessions[0].assert_icommand(['igroupadmin', 'mkgroup', 'test_group'])
+            group_name = 'test_group'
+            self.user_sessions[0].assert_icommand(['igroupadmin', 'mkgroup', group_name])
+            self.user_sessions[0].assert_icommand(['igroupadmin', 'lg'], 'STDOUT_SINGLELINE', group_name)
+            self.user_sessions[0].assert_icommand(['igroupadmin', 'lgd', group_name], 'STDOUT_SINGLELINE', 'rodsgroup')
             try :
-                self.user_sessions[0].assert_icommand(['igroupadmin', 'atg', 'test_group', self.sessions[0].username])
-                self.user_sessions[0].assert_icommand(['igroupadmin', 'atg', 'test_group', self.sessions[1].username])
-                self.user_sessions[0].assert_icommand(['igroupadmin', 'lg', 'test_group'], STDOUT_SINGLELINE, self.user_sessions[0].username)
-                self.user_sessions[0].assert_icommand(['igroupadmin', 'lg', 'test_group'], STDOUT_SINGLELINE, self.user_sessions[1].username)
-                self.admin.assert_icommand(['iadmin', 'lg', 'test_group'], STDOUT_SINGLELINE, self.user_sessions[0].username)
-                self.admin.assert_icommand(['iadmin', 'lg', 'test_group'], STDOUT_SINGLELINE, self.user_sessions[1].username)
-                self.user_sessions[0].assert_icommand(['igroupadmin', 'rfg', 'test_group', self.sessions[1].username])
+                self.user_sessions[0].assert_icommand(['igroupadmin', 'atg', group_name, self.user_sessions[0].username])
+                self.user_sessions[0].assert_icommand(['igroupadmin', 'atg', group_name, self.user_sessions[1].username])
+                self.user_sessions[0].assert_icommand(['igroupadmin', 'lg', group_name], 'STDOUT_SINGLELINE', self.user_sessions[0].username)
+                self.user_sessions[0].assert_icommand(['igroupadmin', 'lg', group_name], 'STDOUT_SINGLELINE', self.user_sessions[1].username)
+                self.admin.assert_icommand(['iadmin', 'lg', group_name], 'STDOUT_SINGLELINE', self.user_sessions[0].username)
+                self.admin.assert_icommand(['iadmin', 'lg', group_name], 'STDOUT_SINGLELINE', self.user_sessions[1].username)
+                self.user_sessions[0].assert_icommand(['igroupadmin', 'rfg', group_name, self.user_sessions[1].username])
 
             finally :
-                self.admin.assert_icommand(['iadmin', 'rmgroup', 'test_group'])
+                self.admin.assert_icommand(['iadmin', 'rmgroup', group_name])
         finally :
             self.admin.assert_icommand(['iadmin', 'moduser', self.user_sessions[0].username, 'type', 'rodsuser'])
 

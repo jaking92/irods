@@ -87,16 +87,18 @@ class Test_Iadmin(resource_suite.ResourceBase, unittest.TestCase):
         username = 'moduser_user'
         self.admin.assert_icommand(['iadmin', 'mkuser', username, 'rodsuser'])
         try :
-            self.admin.assert_icommand(['iadmin', 'moduser', username, 'type', 'invalid_user_type'], 'STDERR_SINGLELINE', 'CAT_INVALID_USER_TYPE')
             self.admin.assert_icommand(['iadmin', 'moduser', username, 'type', 'rodsadmin'])
             self.admin.assert_icommand(['iadmin', 'moduser', username, 'type', 'rodsuser'])
-            self.admin.assert_icommand(['iadmin', 'moduser', username, 'zone', 'tempZone'])
             self.admin.assert_icommand(['iadmin', 'moduser', username, 'comment', 'this is a comment'])
             self.admin.assert_icommand(['iadmin', 'moduser', username, 'comment', ''])
             self.admin.assert_icommand(['iadmin', 'moduser', username, 'info', 'this is the info field'])
             self.admin.assert_icommand(['iadmin', 'moduser', username, 'info', ''])
             self.admin.assert_icommand(['iadmin', 'moduser', username, 'password', 'abc'])
             self.admin.assert_icommand(['iadmin', 'moduser', username, 'password', '1234'])
+            self.admin.assert_icommand(['iadmin', 'moduser', username, 'type', 'invalid_user_type'], 'STDERR_SINGLELINE', 'CAT_INVALID_USER_TYPE')
+            self.admin.assert_icommand(['iadmin', 'moduser', username, 'type', 'rodsgroup'], 'STDERR_SINGLELINE', 'CAT_INVALID_ARGUMENT')
+            self.admin.assert_icommand(['iadmin', 'moduser', username, 'zone', 'tempZone'], 'STDERR_SINGLELINE', 'CAT_INVALID_ARGUMENT')
+            self.admin.assert_icommand(['iadmin', 'moduser', 'public', 'type', 'rodsuser'], 'STDERR_SINGLELINE', 'CAT_INVALID_ARGUMENT')
         finally :
             self.admin.assert_icommand(['iadmin', 'rmuser', username])
 
@@ -142,8 +144,16 @@ class Test_Iadmin(resource_suite.ResourceBase, unittest.TestCase):
         self.admin.assert_icommand("iadmin lr notaresource", 'STDOUT_SINGLELINE', "No rows found")
 
     def test_list_users(self):
+        username = 'newZone_user'
+        zone_name = 'newZone'
+        self.admin.assert_icommand(['iadmin', 'mkzone', zone_name, 'remote'])
+        self.admin.assert_icommand(['iadmin', 'mkuser', username + '#' + zone_name, 'rodsuser'])
         self.admin.assert_icommand("iadmin lu", 'STDOUT_SINGLELINE', [self.admin.username + "#" + self.admin.zone_name])
-        self.admin.assert_icommand("iadmin lu notauser", 'STDOUT_SINGLELINE', "No rows found")
+        self.admin.assert_icommand("iadmin lu " + username, 'STDOUT_SINGLELINE', 'CAT_NO_ROWS_FOUND')
+        self.admin.assert_icommand("iadmin lu {0}#{1}".format(username, zone_name), 'STDOUT_SINGLELINE', zone_name)
+        self.admin.assert_icommand("iadmin lu public", 'STDOUT_SINGLELINE', "CAT_NO_ROWS_FOUND")
+        self.admin.assert_icommand(['iadmin', 'rmzone', zone_name])
+        self.admin.assert_icommand(['iadmin', 'rmuser', username + '#' + zone_name])
 
     def test_list_groups(self):
         group_name = 'test_group'
@@ -151,6 +161,7 @@ class Test_Iadmin(resource_suite.ResourceBase, unittest.TestCase):
         self.admin.assert_icommand('iadmin lg', 'STDOUT_SINGLELINE', group_name)
         self.admin.assert_icommand_fail('iadmin lg', 'STDOUT_SINGLELINE', 'notagroup')
         self.admin.assert_icommand('iadmin lg ' + group_name, 'STDOUT_SINGLELINE', self.user0.username)
+        self.admin.assert_icommand('iadmin lgd ' + group_name, 'STDOUT_SINGLELINE', 'rodsgroup')
         self.admin.assert_icommand_fail('iadmin lg ' + group_name, 'STDOUT_SINGLELINE', 'notauser')
         self.admin.assert_icommand(['iadmin', 'rmgroup', group_name])
 
@@ -1251,7 +1262,7 @@ class Test_Iadmin(resource_suite.ResourceBase, unittest.TestCase):
         self.admin.assert_icommand(['iadmin', 'lz', self.admin.zone_name], 'STDOUT_SINGLELINE', 'zone_type_name: local')
         self.admin.assert_icommand(['iadmin', 'lg'], 'STDOUT_SINGLELINE', 'rodsadmin')
         self.admin.assert_icommand(['iadmin', 'lg', 'rodsadmin'], 'STDOUT_SINGLELINE')
-        self.admin.assert_icommand(['iadmin', 'lgd', 'rodsadmin'], 'STDOUT_SINGLELINE', 'user_name: rodsadmin')
+        self.admin.assert_icommand(['iadmin', 'lgd', 'rodsadmin'], 'STDOUT_SINGLELINE', 'name: rodsadmin')
         self.admin.assert_icommand(['iadmin', 'lrg'], 'STDERR_SINGLELINE', 'Resource groups are deprecated.')
 
     def test_group_membership(self):
@@ -1277,6 +1288,7 @@ class Test_Iadmin(resource_suite.ResourceBase, unittest.TestCase):
         self.admin.assert_icommand(['iadmin', 'aua', username, authentication_name])
         out, _, _ = self.admin.run_icommand(['iadmin', 'lua', username])
         self.assertEqual(len(out.splitlines()), 1, 'iadmin lua returned more than one line')
+        self.admin.assert_icommand(['iadmin', 'rmuser', username])
 
     def test_aua_multiple_distinguished_name__issue_3620(self):
         username = 'issue_3620_user'
@@ -1290,6 +1302,7 @@ class Test_Iadmin(resource_suite.ResourceBase, unittest.TestCase):
         self.admin.assert_icommand(['iadmin', 'aua', username, authentication_name_1])
         _, out, _ = self.admin.assert_icommand(['iadmin', 'lua', username], 'STDOUT_MULTILINE', [username + ' ' + authentication_name_1, username + ' ' + authentication_name_2])
         self.assertEqual(len(out.splitlines()), 2, 'iadmin lua did not return exactly two lines')
+        self.admin.assert_icommand(['iadmin', 'rmuser', username])
 
 
     def test_addchildtoresc_forbidden_characters_3449(self):
@@ -1301,7 +1314,6 @@ class Test_Iadmin(resource_suite.ResourceBase, unittest.TestCase):
         self.admin.assert_icommand(['iadmin', 'rmresc', 'parent'])
         self.admin.assert_icommand(['iadmin', 'rmresc', 'child'])
 
-    @unittest.skipIf(test.settings.RUN_IN_TOPOLOGY, "Skip for Topology Testing")
     def test_silent_failure_when_removing_non_child_from_parent__issue_3859(self):
         # Create resource tree.
         self.admin.assert_icommand('iadmin mkresc pt0 passthru', 'STDOUT', 'passthru')
@@ -1318,11 +1330,10 @@ class Test_Iadmin(resource_suite.ResourceBase, unittest.TestCase):
         self.admin.assert_icommand('iadmin rmresc pt0')
         self.admin.assert_icommand('iadmin rmresc pt1')
 
-    @unittest.skipIf(test.settings.RUN_IN_TOPOLOGY, "Skip for Topology Testing")
     def test_print_full_username__issue_3170(self):
         username = 'issue_3170_username_ts'
         self.admin.assert_icommand('iadmin mkuser {0} rodsuser'.format(username))
-        self.admin.assert_icommand('iadmin lu {0}'.format(username), 'STDOUT', 'user_name: {0}'.format(username))
+        self.admin.assert_icommand('iadmin lu {0}'.format(username), 'STDOUT', 'name: {0}'.format(username))
         self.admin.assert_icommand('iadmin rmuser {0}'.format(username))
 
 class Test_Iadmin_Resources(resource_suite.ResourceBase, unittest.TestCase):

@@ -65,13 +65,11 @@ class Test_IUserinfo(resource_suite.ResourceBase, unittest.TestCase):
 
     def test_iuserinfo_invalid_user_and_zone(self):
         test_session = self.admin_session
-        test_session.assert_icommand(['iuserinfo', 'invalidUser#{self.local_zone}'.format(**locals())], 'STDOUT',
-                                     'User invalidUser#{self.local_zone} does not exist.'.format(**locals()))
-        test_session.assert_icommand(['iuserinfo', '{self.local_user}#invalidZone'.format(**locals())], 'STDOUT',
-                                     'User {self.local_user}#invalidZone does not exist.'.format(**locals()))
+        test_session.assert_icommand(['iuserinfo', 'invalidUser#{self.local_zone}'.format(**locals())], 'STDOUT', 'CAT_NO_ROWS_FOUND')
+        test_session.assert_icommand(['iuserinfo', '{self.local_user}#invalidZone'.format(**locals())], 'STDOUT', 'CAT_NO_ROWS_FOUND')
 
     def test_iuserinfo_bad_input(self):
         self.admin_session.assert_icommand(['iuserinfo', 'this#should#fail'], 'STDOUT', 'Failed parsing input')
 
     def test_iuserinfo_group(self):
-        self.admin_session.assert_icommand(['iuserinfo', 'public'], 'STDOUT', 'Not a member of any group')
+        self.admin_session.assert_icommand(['iuserinfo', 'public'], 'STDOUT', 'CAT_NO_ROWS_FOUND')
