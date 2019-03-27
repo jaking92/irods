@@ -121,6 +121,48 @@ class Test_Iadmin(resource_suite.ResourceBase, unittest.TestCase):
         self.admin.assert_icommand("iadmin suq " + self.user1.username + " " + self.testresc + " 60")
         self.admin.assert_icommand("iadmin cu")
 
+    def test_rmuser_with_local_zone_name__3798(self):
+        def assert_user_removed(home_collection, trash_collection):
+            username = os.path.basename(home_collection)
+            self.admin.assert_icommand(['iuserinfo', username], 'STDOUT_SINGLELINE', 'CAT_NO_ROWS_FOUND')
+            self.admin.assert_icommand_fail(['ils', os.path.dirname(home_collection)], 'STDOUT_SINGLELINE', username)
+            self.admin.assert_icommand_fail(['ils', os.path.dirname(trash_collection)], 'STDOUT_SINGLELINE', username)
+
+        username = 'issue_3798_user'
+        zone_name = self.admin.zone_name
+        test_file = 'test_rmuser_with_local_zone_name__3798'
+        lib.make_file(test_file, 1000)
+        try:
+            self.admin.assert_icommand(['iadmin', 'mkuser', username, 'rodsuser'])
+            home_collection = os.path.join(os.sep, zone_name, 'home', username)
+            trash_collection = os.path.join(os.sep, zone_name, 'trash', 'home', username)
+
+            # Make sure using the zone name works
+            self.admin.assert_icommand(['iadmin', 'rmuser', username + '#' + zone_name])
+            assert_user_removed(home_collection, trash_collection)
+
+            # Testing when home and trash collections are not empty
+            data_object_path = os.path.join(home_collection, 'foo')
+            self.admin.assert_icommand(['iadmin', 'mkuser', username, 'rodsuser'])
+            self.admin.assert_icommand(['ichmod', '-rM', 'own', self.admin.username, home_collection])
+            self.admin.assert_icommand(['ichmod', '-rM', 'own', self.admin.username, os.path.join(os.sep, zone_name, 'trash', 'home', username)])
+            self.admin.assert_icommand(['iput', test_file, data_object_path])
+            self.admin.assert_icommand(['iadmin', 'rmuser', username + '#' + zone_name], 'STDERR_SINGLELINE', 'CAT_COLLECTION_NOT_EMPTY')
+            self.admin.assert_icommand(['imv', data_object_path, trash_collection])
+            self.admin.assert_icommand(['iadmin', 'rmuser', username + '#' + zone_name], 'STDERR_SINGLELINE', 'CAT_COLLECTION_NOT_EMPTY')
+            self.admin.assert_icommand(['irmtrash', '-Mu', username])
+            self.admin.assert_icommand(['iadmin', 'rmuser', username + '#' + zone_name])
+            assert_user_removed(home_collection, trash_collection)
+
+            # Test passing no zone name after #
+            self.admin.assert_icommand(['iadmin', 'mkuser', username, 'rodsuser'])
+            self.admin.assert_icommand(['iadmin', 'rmuser', username + '#'])
+            assert_user_removed(home_collection, trash_collection)
+        finally:
+            os.unlink(test_file)
+            self.admin.run_icommand(['iadmin', 'rmuser', username])
+
+
     # PASSWORDS
 
     def test_iadmin_scrambling_and_descrambling(self):
