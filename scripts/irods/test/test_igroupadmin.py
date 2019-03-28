@@ -54,3 +54,20 @@ class Test_Igroupadmin(resource_suite.ResourceBase, unittest.TestCase):
         finally :
             self.admin.assert_icommand(['iadmin', 'moduser', self.user_sessions[0].username, 'type', 'rodsuser'])
 
+    def test_group_with_zone_name(self):
+        user_session = self.user_sessions[0]
+        zone_name = self.user_sessions[0].zone_name
+        self.admin.assert_icommand(['iadmin', 'moduser', user_session.username, 'type', 'groupadmin'])
+        try :
+            group_name = 'test_group'
+            fq_group_name = group_name + '#' + zone_name
+            user_session.assert_icommand(['igroupadmin', 'mkgroup', fq_group_name])
+            user_session.assert_icommand(['igroupadmin', 'lg'], 'STDOUT_SINGLELINE', group_name)
+            user_session.assert_icommand(['igroupadmin', 'lgd', group_name], 'STDOUT_SINGLELINE', 'rodsgroup')
+            try:
+                self.admin.assert_icommand(['iadmin', 'rmgroup', fq_group_name])
+                user_session.assert_icommand(['igroupadmin', 'mkgroup', fq_group_name])
+            finally:
+                self.admin.assert_icommand(['iadmin', 'rmgroup', group_name])
+        finally :
+            self.admin.assert_icommand(['iadmin', 'moduser', user_session.username, 'type', 'rodsuser'])
