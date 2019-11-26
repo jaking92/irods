@@ -420,14 +420,8 @@ int main() {
 
     while(!re_server_terminated) {
         try {
-            auto query_conn_pool = std::make_shared<irods::connection_pool>(
-                1,
-                env.rodsHost,
-                env.rodsPort,
-                env.rodsUserName,
-                env.rodsZone,
-                env.irodsConnectionPoolRefreshTime);
             auto delay_queue_processor = make_delay_queue_query_processor(worker_conn_pool, thread_pool, queue, re_server_terminated);
+            auto query_conn_pool = irods::make_connection_pool();
             auto query_conn = query_conn_pool->get_connection();
             auto future = delay_queue_processor.execute(thread_pool, static_cast<rcComm_t&>(query_conn));
             auto errors = future.get();
