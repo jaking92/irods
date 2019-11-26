@@ -9,6 +9,7 @@
 #include "thread_pool.hpp"
 #include "irodsReServer.hpp"
 #include "miscServerFunct.hpp"
+#include "query_processor.hpp"
 #include "rodsClient.h"
 #include "rodsPackTable.h"
 #include "rsGlobalExtern.hpp"
@@ -159,6 +160,9 @@ namespace {
             return status;
         };
 
+        irods::log(LOG_DEBUG,
+            (boost::format("[%s:%d] - time:[%s],ef:[%s],next:[%s]") %
+            __FUNCTION__ % __LINE__ % current_time % ef_string % next_time).str());
         const int repeat_status = getNextRepeatTime(current_time, ef_string, next_time);
         switch(repeat_status) {
             case 0:
@@ -211,9 +215,9 @@ namespace {
                          RodsPackTable,
                          NATIVE_PROT);
         if (status < 0) {
-            rodsLog(LOG_ERROR,
-                "[%s] - unpackStruct error. status [%d]",
-                __FUNCTION__, status );
+            irods::log(LOG_ERROR,
+                (boost::format("[%s] - unpackStruct error. status [%d]") %
+                __FUNCTION__ % status).str());
             return status;
         }
 
@@ -239,16 +243,16 @@ namespace {
             return update_entry_for_repeat(_comm, _inp, status);
         }
         else if(status < 0) {
-            rodsLog(LOG_ERROR,
-                    "ruleExec of %s: %s failed.",
-                    _inp.ruleExecId, _inp.ruleName);
+            irods::log(LOG_ERROR,
+                (boost::format("ruleExec of %s: %s failed.") %
+                _inp.ruleExecId % _inp.ruleName).str());
             ruleExecDelInp_t rule_exec_del_inp{};
             rstrcpy(rule_exec_del_inp.ruleExecId, _inp.ruleExecId, NAME_LEN);
             status = rcRuleExecDel(&_comm, &rule_exec_del_inp);
             if (status < 0) {
-                rodsLog(LOG_ERROR,
-                        "rcRuleExecDel failed for %s, stat=%d",
-                        _inp.ruleExecId, status);
+                irods::log(LOG_ERROR,
+                    (boost::format("rcRuleExecDel failed for %s, stat=%d") %
+                    _inp.ruleExecId % status).str());
                 // Establish a new connection as the original may be invalid
                 rodsEnv env{};
                 _getRodsEnv(env);
@@ -261,9 +265,9 @@ namespace {
                     env.irodsConnectionPoolRefreshTime);
                 status = rcRuleExecDel(&static_cast<rcComm_t&>(tmp_pool->get_connection()), &rule_exec_del_inp);
                 if (status < 0) {
-                    rodsLog(LOG_ERROR,
-                            "rcRuleExecDel failed again for %s, stat=%d - exiting",
-                            _inp.ruleExecId, status);
+                    irods::log(LOG_ERROR,
+                            (boost::format("rcRuleExecDel failed again for %s, stat=%d - exiting") %
+                            _inp.ruleExecId % status).str());
                 }
             }
             return status;
@@ -274,7 +278,9 @@ namespace {
             rstrcpy(rule_exec_del_inp.ruleExecId, _inp.ruleExecId, NAME_LEN);
             status = rcRuleExecDel(&_comm, &rule_exec_del_inp);
             if(status < 0) {
-                rodsLog(LOG_ERROR, "Failed deleting rule exec %s from catalog", rule_exec_del_inp.ruleExecId);
+                irods::log(LOG_ERROR,
+                    (boost::format("Failed deleting rule exec %s from catalog") %
+                    rule_exec_del_inp.ruleExecId).str());
             }
             return status;
         }
@@ -304,24 +310,70 @@ namespace {
         }
 
         try {
+            irods::log(LOG_DEBUG8,
+                (boost::format("Executing rule [%s]") %
+                rule_exec_submit_inp.ruleExecId).str());
             int status = run_rule_exec(_conn_pool->get_connection(), rule_exec_submit_inp);
             if(status < 0) {
-                rodsLog(LOG_ERROR, "Rule exec for [%s] failed. status = [%d]",
-                        rule_exec_submit_inp.ruleExecId, status);
+                irods::log(LOG_ERROR,
+                    (boost::format("Rule exec for [%s] failed. status = [%d]") %
+                    rule_exec_submit_inp.ruleExecId % status).str());
             }
         } catch(const std::exception& e) {
-            rodsLog(LOG_ERROR, "Exception caught during execution of rule [%s]: [%s]",
-                    rule_exec_submit_inp.ruleExecId, e.what());
+            irods::log(LOG_ERROR,
+                (boost::format("Exception caught during execution of rule [%s]: [%s]") %
+                rule_exec_submit_inp.ruleExecId % e.what()).str());
         }
 
         _queue.dequeue_rule(std::string(rule_exec_submit_inp.ruleExecId));
+    }
+
+    auto make_delay_queue_query_processor(
+        std::shared_ptr<irods::connection_pool> conn_pool,
+        irods::thread_pool& thread_pool,
+        irods::delay_queue& queue,
+        const std::atomic_bool& re_server_terminated) -> irods::query_processor<rcComm_t>
+    {
+        using result_row = irods::query_processor<rsComm_t>::result_row;
+        const auto now = std::to_string(std::time(nullptr));
+        const auto qstr = (boost::format(
+            "SELECT RULE_EXEC_ID, \
+                    RULE_EXEC_NAME, \
+                    RULE_EXEC_REI_FILE_PATH, \
+                    RULE_EXEC_USER_NAME, \
+                    RULE_EXEC_ADDRESS, \
+                    RULE_EXEC_TIME, \
+                    RULE_EXEC_FREQUENCY, \
+                    RULE_EXEC_PRIORITY, \
+                    RULE_EXEC_LAST_EXE_TIME, \
+                    RULE_EXEC_STATUS, \
+                    RULE_EXEC_ESTIMATED_EXE_TIME, \
+                    RULE_EXEC_NOTIFICATION_ADDR \
+            WHERE RULE_EXEC_TIME <= '%s'") % now).str();
+        const auto job = [&](const result_row& result) -> void
+        {
+            const auto& rule_id = result[0];
+            if(queue.contains_rule_id(rule_id)) {
+                return;
+            }
+            irods::log(LOG_DEBUG,
+                (boost::format("Enqueueing rule [%s]")
+                % rule_id).str());
+            queue.enqueue_rule(rule_id);
+            irods::thread_pool::post(thread_pool, [conn_pool, &queue, result, &re_server_terminated] {
+                execute_rule(conn_pool, queue, result, re_server_terminated);
+            });
+        };
+        return {qstr, job};
     }
 }
 
 int main() {
     static std::atomic_bool re_server_terminated{};
     const auto signal_exit_handler = [](int signal) {
-        rodsLog(LOG_NOTICE, "RE server received signal [%d]", signal);
+        irods::log(LOG_ERROR,
+            (boost::format("RE server received signal [%d]")
+            % signal).str());
         re_server_terminated = true;
     };
     signal(SIGINT, signal_exit_handler);
@@ -354,13 +406,20 @@ int main() {
         return thread_count;
     }();
     irods::thread_pool thread_pool{thread_count};
-
     irods::delay_queue queue;
+
+    rodsEnv env{};
+    _getRodsEnv(env);
+    auto worker_conn_pool = std::make_shared<irods::connection_pool>(
+        thread_count,
+        env.rodsHost,
+        env.rodsPort,
+        env.rodsUserName,
+        env.rodsZone,
+        env.irodsConnectionPoolRefreshTime);
 
     while(!re_server_terminated) {
         try {
-            rodsEnv env{};
-            _getRodsEnv(env);
             auto query_conn_pool = std::make_shared<irods::connection_pool>(
                 1,
                 env.rodsHost,
@@ -368,42 +427,16 @@ int main() {
                 env.rodsUserName,
                 env.rodsZone,
                 env.irodsConnectionPoolRefreshTime);
+            auto delay_queue_processor = make_delay_queue_query_processor(worker_conn_pool, thread_pool, queue, re_server_terminated);
             auto query_conn = query_conn_pool->get_connection();
-            const auto now = std::to_string(std::time(nullptr));
-            const auto qstr = (boost::format(
-                "SELECT RULE_EXEC_ID, \
-                        RULE_EXEC_NAME, \
-                        RULE_EXEC_REI_FILE_PATH, \
-                        RULE_EXEC_USER_NAME, \
-                        RULE_EXEC_ADDRESS, \
-                        RULE_EXEC_TIME, \
-                        RULE_EXEC_FREQUENCY, \
-                        RULE_EXEC_PRIORITY, \
-                        RULE_EXEC_LAST_EXE_TIME, \
-                        RULE_EXEC_STATUS, \
-                        RULE_EXEC_ESTIMATED_EXE_TIME, \
-                        RULE_EXEC_NOTIFICATION_ADDR \
-                WHERE RULE_EXEC_TIME <= '%s'") % now).str();
-            irods::query<rcComm_t> qobj{&static_cast<rcComm_t&>(query_conn), qstr};
-            if(qobj.size() > 0) {
-                rodsEnv env{};
-                _getRodsEnv(env);
-                auto conn_pool = std::make_shared<irods::connection_pool>(
-                    std::min<int>(thread_count, qobj.size()),
-                    env.rodsHost,
-                    env.rodsPort,
-                    env.rodsUserName,
-                    env.rodsZone,
-                    env.irodsConnectionPoolRefreshTime);
-                for(const auto& result: qobj) {
-                    const auto& rule_id = result[0];
-                    if(queue.contains_rule_id(rule_id)) {
-                        continue;
-                    }
-                    queue.enqueue_rule(rule_id);
-                    irods::thread_pool::post(thread_pool, [conn_pool, &queue, result] {
-                        execute_rule(conn_pool, queue, result, re_server_terminated);
-                    });
+            auto future = delay_queue_processor.execute(thread_pool, static_cast<rcComm_t&>(query_conn));
+            auto errors = future.get();
+            if(errors.size() > 0) {
+                for(const auto& [code, msg] : errors) {
+                    irods::log(LOG_ERROR,
+                        (boost::format("executing delayed rule failed - [%d]::[%s]")
+                        % code
+                        % msg).str());
                 }
             }
         } catch(const std::exception& e) {
