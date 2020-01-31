@@ -29,6 +29,8 @@
 #include <boost/format.hpp>
 
 namespace {
+    static std::atomic_bool re_server_terminated{};
+
     int init_log() {
         /* Handle option to log sql commands */
         auto sql_log_level = getenv(SP_LOG_SQL);
@@ -240,6 +242,12 @@ namespace {
         }};
 
         status = rcExecRuleExpression(&_comm, &exec_rule);
+        if (re_server_terminated) {
+            irods::log(LOG_NOTICE,
+                (boost::format("Rule [%s] completed with status [%d] but RE server was terminated.") %
+                _inp.ruleExecId % status).str());
+        }
+
         if (strlen(_inp.exeFrequency) > 0) {
             return update_entry_for_repeat(_comm, _inp, status);
         }
@@ -287,16 +295,16 @@ namespace {
         }
     }
 
-    // Task posted to io_service
     void execute_rule(
-        std::shared_ptr<irods::connection_pool> _conn_pool,
-        irods::delay_queue& _queue,
-        const std::vector<std::string>& _rule_info,
-        const std::atomic_bool& _re_server_terminated) {
-        if (_re_server_terminated) {
+        std::shared_ptr<irods::connection_pool> conn_pool,
+        irods::delay_queue& queue,
+        const std::vector<std::string>& rule_info)
+        //const std::vector<std::string>& rule_info,
+        //const std::atomic_bool& re_server_terminated)
+    {
+        if (re_server_terminated) {
             return;
         }
-        // Prepare input for rule execution API call
         ruleExecSubmitInp_t rule_exec_submit_inp{};
 
         irods::at_scope_exit<std::function<void()>> at_scope_exit{[&rule_exec_submit_inp] {
@@ -304,17 +312,17 @@ namespace {
         }};
 
         try{
-            rule_exec_submit_inp = fill_rule_exec_submit_inp(_rule_info);
+            rule_exec_submit_inp = fill_rule_exec_submit_inp(rule_info);
         } catch(const irods::exception& e) {
             irods::log(e);
             return;
         }
 
         try {
-            irods::log(LOG_DEBUG8,
+            irods::log(LOG_DEBUG,
                 (boost::format("Executing rule [%s]") %
                 rule_exec_submit_inp.ruleExecId).str());
-            int status = run_rule_exec(_conn_pool->get_connection(), rule_exec_submit_inp);
+            int status = run_rule_exec(conn_pool->get_connection(), rule_exec_submit_inp);
             if(status < 0) {
                 irods::log(LOG_ERROR,
                     (boost::format("Rule exec for [%s] failed. status = [%d]") %
@@ -326,14 +334,17 @@ namespace {
                 rule_exec_submit_inp.ruleExecId % e.what()).str());
         }
 
-        _queue.dequeue_rule(std::string(rule_exec_submit_inp.ruleExecId));
+        if (!re_server_terminated) {
+            queue.dequeue_rule(std::string(rule_exec_submit_inp.ruleExecId));
+        }
     }
 
     auto make_delay_queue_query_processor(
         std::shared_ptr<irods::connection_pool> conn_pool,
         irods::thread_pool& thread_pool,
-        irods::delay_queue& queue,
-        const std::atomic_bool& re_server_terminated) -> irods::query_processor<rcComm_t>
+        irods::delay_queue& queue) -> irods::query_processor<rcComm_t>
+        //irods::delay_queue& queue,
+        //const std::atomic_bool& re_server_terminated) -> irods::query_processor<rcComm_t>
     {
         using result_row = irods::query_processor<rsComm_t>::result_row;
         const auto now = std::to_string(std::time(nullptr));
@@ -361,8 +372,10 @@ namespace {
                 (boost::format("Enqueueing rule [%s]")
                 % rule_id).str());
             queue.enqueue_rule(rule_id);
-            irods::thread_pool::post(thread_pool, [conn_pool, &queue, result, &re_server_terminated] {
-                execute_rule(conn_pool, queue, result, re_server_terminated);
+            irods::thread_pool::post(thread_pool, [conn_pool, &queue, result] {
+            //irods::thread_pool::post(thread_pool, [conn_pool, &queue, result, &re_server_terminated] {
+                execute_rule(conn_pool, queue, result);
+                //execute_rule(conn_pool, queue, result, re_server_terminated);
             });
         };
         return {qstr, job};
@@ -372,7 +385,6 @@ namespace {
 int main() {
     static std::condition_variable term_cv;
     static std::mutex term_m;
-    static std::atomic_bool re_server_terminated{};
     const auto signal_exit_handler = [](int signal) {
         irods::log(LOG_NOTICE,
             (boost::format("RE server received signal [%d]")
@@ -432,7 +444,8 @@ int main() {
 
     while(!re_server_terminated) {
         try {
-            auto delay_queue_processor = make_delay_queue_query_processor(worker_conn_pool, thread_pool, queue, re_server_terminated);
+            auto delay_queue_processor = make_delay_queue_query_processor(worker_conn_pool, thread_pool, queue);
+            //auto delay_queue_processor = make_delay_queue_query_processor(worker_conn_pool, thread_pool, queue, re_server_terminated);
             auto query_conn_pool = irods::make_connection_pool();
             auto query_conn = query_conn_pool->get_connection();
             auto future = delay_queue_processor.execute(thread_pool, static_cast<rcComm_t&>(query_conn));
