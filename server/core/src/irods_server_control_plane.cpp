@@ -248,7 +248,7 @@ namespace irods {
         bool timeout_flg = false;
         int  proc_cnt = getAgentProcCnt();
 
-        // kill the rule engine server
+        // kill the delay server
         rodsLog(LOG_DEBUG, "[%s:%d] - sending kill to delay server", __FUNCTION__, __LINE__);
         ret = kill_server( irods::RE_PID_KW );
         if ( !ret.ok() ) {
