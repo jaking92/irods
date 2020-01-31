@@ -20,6 +20,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <thread>
 
@@ -369,12 +370,15 @@ namespace {
 }
 
 int main() {
+    static std::condition_variable term_cv;
+    static std::mutex term_m;
     static std::atomic_bool re_server_terminated{};
     const auto signal_exit_handler = [](int signal) {
-        irods::log(LOG_ERROR,
+        irods::log(LOG_NOTICE,
             (boost::format("RE server received signal [%d]")
             % signal).str());
         re_server_terminated = true;
+        term_cv.notify_all();
     };
     signal(SIGINT, signal_exit_handler);
     signal(SIGHUP, signal_exit_handler);
@@ -395,6 +399,14 @@ int main() {
         }
         return sleep_time;
     }();
+
+    const auto go_to_sleep = [&sleep_time]() {
+        std::unique_lock<std::mutex> sleep_lock{term_m};
+        const auto until = std::chrono::system_clock::now() + std::chrono::seconds(sleep_time);
+        if (std::cv_status::no_timeout == term_cv.wait_until(sleep_lock, until)) {
+            irods::log(LOG_DEBUG, "I have been awoken by a notify!");
+        }
+    };
 
     const auto thread_count = [] {
         int thread_count = irods::default_max_number_of_concurrent_re_threads;
@@ -438,6 +450,7 @@ int main() {
         } catch(const irods::exception& e) {
             irods::log(e);
         }
-        std::this_thread::sleep_for(std::chrono::seconds(sleep_time));
+        go_to_sleep();
     }
+    irods::log(LOG_NOTICE, "RE server exiting...");
 }

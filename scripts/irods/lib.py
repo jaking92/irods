@@ -161,9 +161,11 @@ def get_pids_executing_binary_file(binary_file_path):
 
 def kill_pid(pid):
     p = psutil.Process(pid)
-    p.suspend()
     p.terminate()
-    p.kill()
+    try:
+        p.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        p.kill()
 
 def find_shared_object(so_name, regex=False, additional_directories=[]):
     paths = []
