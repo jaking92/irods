@@ -3,6 +3,17 @@
 #include "rodsErrorTable.h"
 #include "irods_server_state.hpp"
 
+#include <algorithm>
+#include <vector>
+
+namespace {
+    const std::vector<std::string> server_states{
+        irods::server_state::RUNNING,
+        irods::server_state::PAUSED,
+        irods::server_state::STOPPED,
+        irods::server_state::EXITED};
+}
+
 namespace irods {
 
     const std::string server_state::RUNNING( "server_state_running" );
@@ -10,9 +21,9 @@ namespace irods {
     const std::string server_state::STOPPED( "server_state_stopped" );
     const std::string server_state::EXITED( "server_state_exited" );
 
-
-    server_state::server_state() :
-        state_( RUNNING )  {
+    server_state::server_state()
+        : state_{RUNNING}
+    {
     }
 
     server_state& server_state::instance() {
@@ -20,28 +31,23 @@ namespace irods {
         return instance_;
     }
 
-    error server_state::operator()( const std::string& _s ) {
-        boost::mutex::scoped_lock lock( mutex_ );
-        if ( RUNNING != _s &&
-             PAUSED  != _s &&
-             STOPPED != _s &&
-             EXITED  != _s ) {
+    error server_state::operator()(const std::string& s) {
+        std::unique_lock<std::mutex> l{mutex_};
+        if (std::none_of(
+                server_states.cbegin(),
+                server_states.cend(),
+                [&s](const std::string& state) { return s == state; })) {
             std::string msg( "invalid state [" );
-            msg += _s;
+            msg += s;
             msg += "]";
-            return ERROR(
-                       SYS_INVALID_INPUT_PARAM,
-                       msg );
-
+            return ERROR(SYS_INVALID_INPUT_PARAM, msg);
         }
-
-        state_ = _s;
-
+        state_ = s;
         return SUCCESS();
     }
 
     std::string server_state::operator()() {
-        boost::mutex::scoped_lock lock( mutex_ );
+        std::unique_lock<std::mutex> l{mutex_};
         return state_;
     }
 

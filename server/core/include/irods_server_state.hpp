@@ -6,12 +6,13 @@
 
 #include "irods_error.hpp"
 
-#include <boost/thread/mutex.hpp>
+#include <mutex>
+
 namespace irods {
     class server_state {
         public:
             static server_state& instance();
-            error operator()( const std::string& _s );
+            error operator()(const std::string& s);
             std::string operator()();
 
             static const std::string RUNNING;
@@ -21,10 +22,10 @@ namespace irods {
 
         private:
             server_state();
-            server_state( server_state& ) {}
-            server_state( const server_state& ) {}
+            server_state(server_state&) {}
+            server_state(const server_state&) {}
 
-            boost::mutex mutex_;
+            std::mutex mutex_;
             std::string state_;
 
     }; // class server_state
