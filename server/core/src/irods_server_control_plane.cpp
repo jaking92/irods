@@ -241,8 +241,8 @@ namespace irods {
 
         int wait_milliseconds = SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
 
-        server_state& svr_state = server_state::instance();
-        svr_state( server_state::PAUSED );
+        auto& mgr = server_state_mgr::instance();
+        mgr.server_state(server_state_t::PAUSED);
 
         int  sleep_time  = 0;
         bool timeout_flg = false;
@@ -279,7 +279,7 @@ namespace irods {
         }
 
         // actually shut down the server
-        svr_state( server_state::STOPPED );
+        mgr.server_state(server_state_t::STOPPED);
 
         // block until server exits to return
         while( !timeout_flg ) {
@@ -293,8 +293,7 @@ namespace irods {
                 timeout_flg = true;
             }
 
-            std::string the_server_state = svr_state();
-            if ( irods::server_state::EXITED == the_server_state ) {
+            if (server_state_t::EXITED == mgr.server_state()) {
                 break;
             }
 
@@ -307,49 +306,47 @@ namespace irods {
     static error rule_engine_operation_shutdown(
         const std::string&, // _wait_option,
         const size_t, //       _wait_seconds,
-        std::string& _output ) {
+        std::string& _output)
+    {
         rodsEnv my_env;
         _reloadRodsEnv( my_env );
         _output += "{\n    \"shutting down\": \"";
         _output += my_env.rodsHost;
         _output += "\"\n},\n";
 
-        server_state& s = server_state::instance();
-        s( server_state::STOPPED );
+        server_state_mgr::instance()
+            .server_state(server_state_t::STOPPED);
         return SUCCESS();
-
     } // rule_engine_server_operation_shutdown
 
     static error operation_pause(
         const std::string&, // _wait_option,
         const size_t, //       _wait_seconds,
-        std::string& _output ) {
+        std::string& _output)
+    {
         rodsEnv my_env;
         _reloadRodsEnv( my_env );
         _output += "{\n    \"pausing\": \"";
         _output += my_env.rodsHost;
         _output += "\"\n},\n";
-        server_state& s = server_state::instance();
-        s( server_state::PAUSED );
-
+        server_state_mgr::instance()
+            .server_state(server_state_t::PAUSED);
         return SUCCESS();
-
     } // operation_pause
 
     static error operation_resume(
         const std::string&, // _wait_option,
         const size_t, //       _wait_seconds,
-        std::string& _output ) {
+        std::string& _output)
+    {
         rodsEnv my_env;
         _reloadRodsEnv( my_env );
         _output += "{\n    \"resuming\": \"";
         _output += my_env.rodsHost;
         _output += "\"\n},\n";
-
-        server_state& s = server_state::instance();
-        s( server_state::RUNNING );
+        server_state_mgr::instance()
+            .server_state(server_state_t::RUNNING);
         return SUCCESS();
-
     } // operation_resume
 
     static int get_pid_age(
@@ -414,8 +411,7 @@ namespace irods {
             {"xmsg_server_pid", xmsg_pid} // Should be int
         };
 
-        server_state& s = server_state::instance();
-        obj["status"] = s();
+        obj["status"] = get_server_state();
 
         auto arr = json::array();
 
@@ -729,9 +725,9 @@ namespace irods {
                         ">>> control plane :: listening on port %d\n",
                         port );
 
-                server_state& s = server_state::instance();
-                while ( server_state::STOPPED != s() &&
-                        server_state::EXITED != s() ) {
+                auto& s = irods::server_state_mgr::instance();
+                while (server_state_t::STOPPED != s.server_state() &&
+                       server_state_t::EXITED != s.server_state()) {
 
                     zmq::message_t req;
                     zmq_skt.recv( &req );
@@ -1162,10 +1158,8 @@ namespace irods {
         }
 
         // add safeguards - if server is paused only allow a resume call
-        server_state& s = server_state::instance();
-        std::string the_server_state = s();
-        if ( server_state::PAUSED == the_server_state &&
-                SERVER_CONTROL_RESUME != cmd_name ) {
+        if (server_state_t::PAUSED == irods::get_server_state() &&
+            SERVER_CONTROL_RESUME != cmd_name) {
             _output = SERVER_PAUSED_ERROR;
             return SUCCESS();
         }

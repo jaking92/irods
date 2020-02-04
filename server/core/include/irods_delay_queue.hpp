@@ -1,3 +1,6 @@
+#ifndef IRODS_DELAY_QUEUE_HPP
+#define IRODS_DELAY_QUEUE_HPP
+
 #include <algorithm>
 #include <mutex>
 #include <string>
@@ -41,3 +44,5 @@ namespace irods {
             }
     };
 }
+
+#endif // IRODS_DELAY_QUEUE_HPP

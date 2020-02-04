@@ -442,28 +442,62 @@ int main() {
         env.rodsZone,
         env.irodsConnectionPoolRefreshTime);
 
-    while(!re_server_terminated) {
-        try {
-            auto delay_queue_processor = make_delay_queue_query_processor(worker_conn_pool, thread_pool, queue);
-            //auto delay_queue_processor = make_delay_queue_query_processor(worker_conn_pool, thread_pool, queue, re_server_terminated);
-            auto query_conn_pool = irods::make_connection_pool();
-            auto query_conn = query_conn_pool->get_connection();
-            auto future = delay_queue_processor.execute(thread_pool, static_cast<rcComm_t&>(query_conn));
-            auto errors = future.get();
-            if(errors.size() > 0) {
-                for(const auto& [code, msg] : errors) {
-                    irods::log(LOG_ERROR,
-                        (boost::format("executing delayed rule failed - [%d]::[%s]")
-                        % code
-                        % msg).str());
+    try {
+        while(!re_server_terminated) {
+#if 0
+            using proc = irods::server_process_t::re_server;
+            using state = irods::server_state_t;
+
+            const auto& the_server_state = irods::get_server_state(proc);
+            if (state::STOPPED == the_server_state) {
+                irods::log(LOG_NOTICE,
+                    (boost::format("delay server is exiting with state [%s]")
+                    % the_server_state.c_str()).str());
+                re_server_terminated = true;
+                break;
+            }
+            else if (state::PAUSED == the_server_state) {
+                // TODO: This is from main server
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                continue;
+            }
+            else {
+                if (state::RUNNING != the_server_state) {
+                    irods::log(LOG_NOTICE,
+                        (boost::format("invalid delay server state [%s]")
+                        % the_server_state.c_str()).str());
                 }
             }
-        } catch(const std::exception& e) {
-            irods::log(LOG_ERROR, e.what());
-        } catch(const irods::exception& e) {
-            irods::log(e);
+#endif
+
+            try {
+                auto delay_queue_processor = make_delay_queue_query_processor(worker_conn_pool, thread_pool, queue);
+                //auto delay_queue_processor = make_delay_queue_query_processor(worker_conn_pool, thread_pool, queue, re_server_terminated);
+                auto query_conn_pool = irods::make_connection_pool();
+                auto query_conn = query_conn_pool->get_connection();
+                auto future = delay_queue_processor.execute(thread_pool, static_cast<rcComm_t&>(query_conn));
+                auto errors = future.get();
+                if(errors.size() > 0) {
+                    for(const auto& [code, msg] : errors) {
+                        irods::log(LOG_ERROR,
+                            (boost::format("executing delayed rule failed - [%d]::[%s]")
+                            % code
+                            % msg).str());
+                    }
+                }
+            } catch(const std::exception& e) {
+                irods::log(LOG_ERROR, e.what());
+            } catch(const irods::exception& e) {
+                irods::log(e);
+            }
+            go_to_sleep();
         }
-        go_to_sleep();
+    }
+    catch (const irods::exception& e) {
+        irods::log(LOG_ERROR,
+            (boost::format("Exception caught in delay server loop\n%s")
+            % e.what()).str());
+        return e.code();
     }
     irods::log(LOG_NOTICE, "RE server exiting...");
 }

@@ -476,10 +476,9 @@ serverMain( char *logDir ) {
         FD_ZERO( &sockMask );
         SvrSock = svrComm.sock;
 
-        irods::server_state& server_state = irods::server_state::instance();
         while ( true ) {
-            std::string the_server_state = server_state();
-            if ( irods::server_state::STOPPED == the_server_state ) {
+            const auto s = irods::get_server_state();
+            if (irods::server_state_t::STOPPED == s) {
                 procChildren( &ConnectedAgentHead );
 
                 // Wake up the agent factory process so it can clean up and exit
@@ -487,12 +486,13 @@ serverMain( char *logDir ) {
 
                 rodsLog(
                     LOG_NOTICE,
-                    "iRODS Server is exiting with state [%s].",
-                    the_server_state.c_str() );
+                    "iRODS Server is exiting with state.");
+                    //"iRODS Server is exiting with state [%s].",
+                    //std::to_string(s).c_str());
                 break;
 
             }
-            else if ( irods::server_state::PAUSED == the_server_state ) {
+            else if (irods::server_state_t::PAUSED == s) {
                 procChildren( &ConnectedAgentHead );
                 rodsSleep(
                     0,
@@ -501,11 +501,11 @@ serverMain( char *logDir ) {
 
             }
             else {
-                if ( irods::server_state::RUNNING != the_server_state ) {
+                if (irods::server_state_t::RUNNING == s) {
                     rodsLog(
                         LOG_NOTICE,
-                        "invalid iRODS server state [%s]",
-                        the_server_state.c_str() );
+                        "invalid iRODS server state.");
+                        //std::to_string(s).c_str());
                 }
 
             }
@@ -607,7 +607,7 @@ serverMain( char *logDir ) {
         procChildren( &ConnectedAgentHead );
         stopProcConnReqThreads();
 
-        server_state( irods::server_state::EXITED );
+        irods::server_state_mgr::instance().server_state(irods::server_state_t::EXITED);
     }
     catch ( const irods::exception& e_ ) {
         rodsLog( LOG_ERROR, "Exception caught in server loop\n%s", e_.what() );
@@ -1310,9 +1310,9 @@ agentProc_t *
 getConnReqFromQue() {
     agentProc_t *myConnReq = NULL;
 
-    irods::server_state& server_state = irods::server_state::instance();
-    while ( irods::server_state::STOPPED != server_state() &&
-            irods::server_state::EXITED != server_state() &&
+    auto& mgr = irods::server_state_mgr::instance();
+    while (irods::server_state_t::STOPPED != mgr.server_state() &&
+           irods::server_state_t::EXITED != mgr.server_state() &&
             myConnReq == NULL ) {
         boost::unique_lock<boost::mutex> read_req_lock( ReadReqCondMutex );
         if ( ConnReqHead != NULL ) {
@@ -1399,9 +1399,9 @@ readWorkerTask() {
         return;
     }
 
-    irods::server_state& server_state = irods::server_state::instance();
-    while ( irods::server_state::STOPPED != server_state() &&
-            irods::server_state::EXITED != server_state() ) {
+    auto& mgr = irods::server_state_mgr::instance();
+    while (irods::server_state_t::STOPPED != mgr.server_state() &&
+           irods::server_state_t::EXITED != mgr.server_state()) {
         agentProc_t *myConnReq = getConnReqFromQue();
         if ( myConnReq == NULL ) {
             /* someone else took care of it */
@@ -1485,9 +1485,9 @@ spawnManagerTask() {
     uint curTime;
     uint agentQueChkTime = 0;
 
-    irods::server_state& server_state = irods::server_state::instance();
-    while ( irods::server_state::STOPPED != server_state() &&
-            irods::server_state::EXITED != server_state() ) {
+    auto& mgr = irods::server_state_mgr::instance();
+    while (irods::server_state_t::STOPPED != mgr.server_state() &&
+           irods::server_state_t::EXITED != mgr.server_state()) {
 
         boost::unique_lock<boost::mutex> spwn_req_lock( SpawnReqCondMutex );
         SpawnReqCond.wait( spwn_req_lock );
@@ -1621,9 +1621,9 @@ purgeLockFileWorkerTask() {
     size_t wait_time_ms = 0;
     const size_t purge_time_ms = LOCK_FILE_PURGE_TIME * 1000; // s to ms
 
-    irods::server_state& server_state = irods::server_state::instance();
-    while ( irods::server_state::STOPPED != server_state() &&
-            irods::server_state::EXITED != server_state() ) {
+    auto& mgr = irods::server_state_mgr::instance();
+    while (irods::server_state_t::STOPPED != mgr.server_state() &&
+           irods::server_state_t::EXITED != mgr.server_state()) {
         rodsSleep( 0, irods::SERVER_CONTROL_POLLING_TIME_MILLI_SEC * 1000 ); // second, microseconds
         wait_time_ms += irods::SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
 

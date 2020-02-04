@@ -1,59 +1,42 @@
-
-
 #include "rodsErrorTable.h"
 #include "irods_server_state.hpp"
 
-#include <algorithm>
-#include <vector>
-
-namespace {
-    const std::vector<std::string> server_states{
-        irods::server_state::RUNNING,
-        irods::server_state::PAUSED,
-        irods::server_state::STOPPED,
-        irods::server_state::EXITED};
-}
-
 namespace irods {
 
-    const std::string server_state::RUNNING( "server_state_running" );
-    const std::string server_state::PAUSED( "server_state_paused" );
-    const std::string server_state::STOPPED( "server_state_stopped" );
-    const std::string server_state::EXITED( "server_state_exited" );
-
-    server_state::server_state()
-        : state_{RUNNING}
+    server_state_mgr::server_state_mgr()
     {
+        using p = server_process_t;
+        using s = server_state_t;
+        std::unique_lock<std::mutex> l{mutex_};
+        state_[p::irods_server] = s::RUNNING;
+        state_[p::agent_spawner] = s::RUNNING;
+        state_[p::xmsg_server] = s::RUNNING;
+        state_[p::re_server] = s::RUNNING;
     }
 
-    server_state& server_state::instance() {
-        static server_state instance_;
+    server_state_mgr& server_state_mgr::instance() {
+        static server_state_mgr instance_;
         return instance_;
     }
 
-    error server_state::operator()(const std::string& s) {
+    void server_state_mgr::server_state(
+        const server_state_t s,
+        const server_process_t p)
+    {
         std::unique_lock<std::mutex> l{mutex_};
-        if (std::none_of(
-                server_states.cbegin(),
-                server_states.cend(),
-                [&s](const std::string& state) { return s == state; })) {
-            std::string msg( "invalid state [" );
-            msg += s;
-            msg += "]";
-            return ERROR(SYS_INVALID_INPUT_PARAM, msg);
-        }
-        state_ = s;
-        return SUCCESS();
+        state_[p] = s;
     }
 
-    std::string server_state::operator()() {
+    server_state_t server_state_mgr::server_state(
+        const server_process_t p)
+    {
         std::unique_lock<std::mutex> l{mutex_};
-        return state_;
+        return state_[p];
     }
 
+    auto get_server_state(const server_process_t p) -> server_state_t
+    {
+        return server_state_mgr::instance().server_state(p);
+    }
 
 }; // namespace irods
-
-
-
-
