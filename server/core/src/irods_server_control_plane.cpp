@@ -241,19 +241,42 @@ namespace irods {
 
         int wait_milliseconds = SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
 
-        auto& mgr = server_state_mgr::instance();
-        mgr.server_state(server_state_t::PAUSED);
+        pause_server();
 
+
+        {
         int  sleep_time  = 0;
         bool timeout_flg = false;
-        int  proc_cnt = getAgentProcCnt();
 
+#if 0
         // kill the delay server
         rodsLog(LOG_DEBUG, "[%s:%d] - sending kill to delay server", __FUNCTION__, __LINE__);
         ret = kill_server( irods::RE_PID_KW );
         if ( !ret.ok() ) {
             irods::log( PASS( ret ) );
         }
+#endif
+        stop_server(irods::server_process_t::re_server);
+            while(!timeout_flg) {
+                // takes sec, millisec
+                ctrl_plane_sleep(
+                    0,
+                    wait_milliseconds);
+
+                sleep_time += SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
+                if (sleep_time > sleep_time_out_milli_sec) {
+                    break;
+                }
+
+                if (server_state_t::EXITED == get_server_state(irods::server_process_t::re_server)) {
+                    break;
+                }
+            } // while
+        }
+
+        int  sleep_time  = 0;
+        bool timeout_flg = false;
+        int  proc_cnt = getAgentProcCnt();
 
         while ( proc_cnt > 0 && !timeout_flg ) {
             // takes sec, millisec
@@ -279,7 +302,7 @@ namespace irods {
         }
 
         // actually shut down the server
-        mgr.server_state(server_state_t::STOPPED);
+        stop_server();
 
         // block until server exits to return
         while( !timeout_flg ) {
@@ -293,7 +316,7 @@ namespace irods {
                 timeout_flg = true;
             }
 
-            if (server_state_t::EXITED == mgr.server_state()) {
+            if (server_state_t::EXITED == get_server_state()) {
                 break;
             }
 
@@ -314,8 +337,7 @@ namespace irods {
         _output += my_env.rodsHost;
         _output += "\"\n},\n";
 
-        server_state_mgr::instance()
-            .server_state(server_state_t::STOPPED);
+        stop_server();
         return SUCCESS();
     } // rule_engine_server_operation_shutdown
 
@@ -329,8 +351,8 @@ namespace irods {
         _output += "{\n    \"pausing\": \"";
         _output += my_env.rodsHost;
         _output += "\"\n},\n";
-        server_state_mgr::instance()
-            .server_state(server_state_t::PAUSED);
+
+        pause_server();
         return SUCCESS();
     } // operation_pause
 
@@ -344,8 +366,8 @@ namespace irods {
         _output += "{\n    \"resuming\": \"";
         _output += my_env.rodsHost;
         _output += "\"\n},\n";
-        server_state_mgr::instance()
-            .server_state(server_state_t::RUNNING);
+
+        resume_server();
         return SUCCESS();
     } // operation_resume
 

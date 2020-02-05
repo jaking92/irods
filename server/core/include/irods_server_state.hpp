@@ -41,6 +41,9 @@ namespace irods {
     }; // class server_state_mgr
 
     auto get_server_state(const server_process_t p = server_process_t::irods_server) -> server_state_t;
+    auto pause_server(const server_process_t p = server_process_t::irods_server) -> void;
+    auto resume_server(const server_process_t p = server_process_t::irods_server) -> void;
+    auto stop_server(const server_process_t p = server_process_t::irods_server) -> void;
 
 }; // namespace irods
 

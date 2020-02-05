@@ -1,3 +1,4 @@
+#include "rodsLog.h"
 #include "rodsErrorTable.h"
 #include "irods_server_state.hpp"
 
@@ -24,6 +25,11 @@ namespace irods {
         const server_process_t p)
     {
         std::unique_lock<std::mutex> l{mutex_};
+        rodsLog(LOG_NOTICE, "[%s:%d] - setting server state for [%d]:[%d]",
+            __FUNCTION__,
+            __LINE__,
+            p,
+            s);
         state_[p] = s;
     }
 
@@ -31,12 +37,39 @@ namespace irods {
         const server_process_t p)
     {
         std::unique_lock<std::mutex> l{mutex_};
+        rodsLog(LOG_NOTICE, "[%s:%d] - getting server state for [%d]:[%d]",
+            __FUNCTION__,
+            __LINE__,
+            p,
+            state_[p]);
         return state_[p];
     }
 
-    auto get_server_state(const server_process_t p) -> server_state_t
+    server_state_t get_server_state(
+        const server_process_t p)
     {
         return server_state_mgr::instance().server_state(p);
+    }
+
+    void stop_server(
+        const server_process_t t)
+    {
+        server_state_mgr::instance().server_state(
+            server_state_t::STOPPED, t);
+    }
+
+    void pause_server(
+        const server_process_t t)
+    {
+        server_state_mgr::instance().server_state(
+            server_state_t::PAUSED, t);
+    }
+
+    void resume_server(
+        const server_process_t t)
+    {
+        server_state_mgr::instance().server_state(
+            server_state_t::RUNNING, t);
     }
 
 }; // namespace irods

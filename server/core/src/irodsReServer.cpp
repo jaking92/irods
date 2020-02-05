@@ -31,6 +31,12 @@
 namespace {
     static std::atomic_bool re_server_terminated{};
 
+    irods::server_state_t re_server_state()
+    {
+        return irods::get_server_state(
+            irods::server_process_t::re_server);
+    }
+
     int init_log() {
         /* Handle option to log sql commands */
         auto sql_log_level = getenv(SP_LOG_SQL);
@@ -443,31 +449,33 @@ int main() {
         env.irodsConnectionPoolRefreshTime);
 
     try {
+#if 1
         while(!re_server_terminated) {
-#if 0
-            using proc = irods::server_process_t::re_server;
             using state = irods::server_state_t;
-
-            const auto& the_server_state = irods::get_server_state(proc);
-            if (state::STOPPED == the_server_state) {
+            const auto s = re_server_state();
+            if (state::STOPPED == s) {
                 irods::log(LOG_NOTICE,
-                    (boost::format("delay server is exiting with state [%s]")
-                    % the_server_state.c_str()).str());
+                    "delay server has been stopped.");
+                    //(boost::format("delay server is exiting with state [%s]")
+                    //% the_server_state.c_str()).str());
                 re_server_terminated = true;
                 break;
             }
-            else if (state::PAUSED == the_server_state) {
+            else if (state::PAUSED == s) {
                 // TODO: This is from main server
                 std::this_thread::sleep_for(std::chrono::seconds(1));
                 continue;
             }
             else {
-                if (state::RUNNING != the_server_state) {
+                if (state::RUNNING != s) {
                     irods::log(LOG_NOTICE,
-                        (boost::format("invalid delay server state [%s]")
-                        % the_server_state.c_str()).str());
+                        "invalid delay server state.");
+                        //(boost::format("invalid delay server state [%s]")
+                        //% the_server_state.c_str()).str());
                 }
             }
+#else
+        while(!re_server_terminated) {
 #endif
 
             try {
@@ -500,4 +508,7 @@ int main() {
         return e.code();
     }
     irods::log(LOG_NOTICE, "RE server exiting...");
+    irods::server_state_mgr::instance().server_state(
+        irods::server_state_t::EXITED,
+        irods::server_process_t::re_server);
 }

@@ -501,7 +501,7 @@ serverMain( char *logDir ) {
 
             }
             else {
-                if (irods::server_state_t::RUNNING == s) {
+                if (irods::server_state_t::RUNNING != s) {
                     rodsLog(
                         LOG_NOTICE,
                         "invalid iRODS server state.");
