@@ -182,7 +182,7 @@ namespace irods::experimental {
             using difference_type   = size_type;
             using iterator_category = std::forward_iterator_tag;
 
-            /// \fn iterator(kvp& _kvp)
+            /// \fn iterator()
             ///
             /// \brief Default constructor for iterator
             ///

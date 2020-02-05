@@ -1,9 +1,7 @@
 #include "rodsLog.h"
-#include "rodsErrorTable.h"
 #include "irods_server_state.hpp"
 
 namespace irods {
-
     server_state_mgr::server_state_mgr()
     {
         using p = server_process_t;
@@ -71,5 +69,4 @@ namespace irods {
         server_state_mgr::instance().server_state(
             server_state_t::RUNNING, t);
     }
-
 }; // namespace irods

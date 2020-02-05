@@ -15,6 +15,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <iomanip>
+
 // =-=-=-=-=-=-=-
 //
 #include "irods_exception.hpp"

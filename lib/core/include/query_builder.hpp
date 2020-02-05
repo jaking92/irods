@@ -6,8 +6,7 @@
 
 #include <vector>
 
-namespace irods {
-namespace experimental {
+namespace irods::experimental {
 
     enum class query_type
     {
@@ -85,8 +84,7 @@ namespace experimental {
         query_type type_ = query_type::general;
     }; // class query_builder
 
-} // namespace experimental
-} // namespace irods
+} // namespace irods::experimental
 
 #endif // IRODS_QUERY_BUILDER_HPP
 

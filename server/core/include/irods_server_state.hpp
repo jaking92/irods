@@ -1,9 +1,8 @@
 #ifndef IRODS_SERVER_STATE_HPP
 #define IRODS_SERVER_STATE_HPP
 
-#include "irods_error.hpp"
-#include <map>
 #include <mutex>
+#include <unordered_map>
 
 namespace irods {
     /// \class server_process_t
@@ -44,8 +43,8 @@ namespace irods {
     class server_state_mgr {
         public:
             // Disables copy
-            server_state_mgr(server_state_mgr&) = delete;
             server_state_mgr(const server_state_mgr&) = delete;
+            server_state_mgr& operator=(const server_state_mgr&) = delete;
 
             /// \fn static server_state_mgr& instance()
             ///
@@ -101,7 +100,7 @@ namespace irods {
             /// \brief Map of iRODS server process and their states
             ///
             /// \since 4.2.8
-            std::map<server_process_t, server_state_t> state_;
+            std::unordered_map<server_process_t, server_state_t> state_;
 
     }; // class server_state_mgr
 
@@ -143,8 +142,6 @@ namespace irods {
     ///
     /// \since 4.2.8
     auto stop_server(const server_process_t p = server_process_t::irods_server) -> void;
-
-
 }; // namespace irods
 
 #endif // IRODS_SERVER_STATE_HPP
