@@ -147,6 +147,12 @@ namespace {
         snprintf( buf, num_hex_bytes + 1, "%s", ss.str().c_str() );
         return 0;
     }
+
+    using operation_map_t = std::unordered_map<std::string, irods::server_control_executor::ctrl_func_t>;
+
+    operation_map_t build_control_plan_op_map()
+    {
+    }
 }
 
 static void set_agent_spawner_process_name(const InformationRequiredToSafelyRenameProcess& info) {

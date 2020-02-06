@@ -61,10 +61,10 @@ namespace irods {
             /// \brief operator operator for use in the control thread
             void operator()();
 
-        private:
             /// \brief Function signature for a control plane operation
             typedef std::function<error(const std::string&, const size_t, std::string&)> ctrl_func_t;
 
+        private:
             /// \brief Vector containing a list of hostnames
             typedef std::vector<std::string> host_list_t;
 
