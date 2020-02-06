@@ -76,8 +76,6 @@ boost::mutex              SpawnReqCondMutex;
 boost::condition_variable ReadReqCond;
 boost::condition_variable SpawnReqCond;
 
-std::vector<std::string> setExecArg( const char *commandArgv );
-
 int runIrodsAgentFactory(sockaddr_un agent_addr);
 
 int queueConnectedAgentProc(
@@ -1645,43 +1643,3 @@ purgeLockFileWorkerTask() {
 
 } // purgeLockFileWorkerTask
 
-std::vector<std::string>
-setExecArg( const char *commandArgv ) {
-
-    std::vector<std::string> arguments;
-    if ( commandArgv != NULL ) {
-        int len = 0;
-        bool openQuote = false;
-        const char* cur = commandArgv;
-        for ( int i = 0; commandArgv[i] != '\0'; i++ ) {
-            if ( commandArgv[i] == ' ' && !openQuote ) {
-                if ( len > 0 ) {    /* end of a argv */
-                    std::string( cur, len );
-                    arguments.push_back( std::string( cur, len ) );
-                    /* reset inx and pointer */
-                    cur = &commandArgv[i + 1];
-                    len = 0;
-                }
-                else {      /* skip over blanks */
-                    cur = &commandArgv[i + 1];
-                }
-            }
-            else if ( commandArgv[i] == '\'' || commandArgv[i] == '\"' ) {
-                openQuote ^= true;
-                if ( openQuote ) {
-                    /* skip the quote */
-                    cur = &commandArgv[i + 1];
-                }
-            }
-            else {
-                len ++;
-            }
-        }
-        if ( len > 0 ) {    /* handle the last argv */
-            arguments.push_back( std::string( cur, len ) );
-        }
-    }
-
-    return arguments;
-}
-// =-=-=-=-=-=-=-

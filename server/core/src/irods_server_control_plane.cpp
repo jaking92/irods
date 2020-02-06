@@ -30,33 +30,33 @@
 #include <functional>
 #include <unistd.h>
 
-namespace irods {
-    static void ctrl_plane_sleep(
+namespace {
+    void ctrl_plane_sleep(
         int _s,
         int _ms ) {
         useconds_t us = ( _s * 1000000 ) + ( _ms * 1000 );
         usleep( us );
     }
 
-    static error forward_server_control_command(
+    irods::error forward_server_control_command(
         const std::string& _name,
         const std::string& _host,
         const std::string& _port_keyword,
-        std::string&       _output ) {
-        if ( EMPTY_RESC_HOST == _host ) {
+        std::string&       _output )
+    {
+        if (irods::EMPTY_RESC_HOST == _host) {
             return SUCCESS();
-
         }
 
         int time_out, port, num_hash_rounds;
         boost::optional<const std::string&> encryption_algorithm;
-        buffer_crypt::array_t shared_secret;
+        irods::buffer_crypt::array_t shared_secret;
         try {
-            time_out = get_server_property<const int>(CFG_SERVER_CONTROL_PLANE_TIMEOUT);
-            port = get_server_property<const int>(_port_keyword);
-            num_hash_rounds = get_server_property<const int>(CFG_SERVER_CONTROL_PLANE_ENCRYPTION_NUM_HASH_ROUNDS_KW);
-            encryption_algorithm.reset(get_server_property<const std::string>(CFG_SERVER_CONTROL_PLANE_ENCRYPTION_ALGORITHM_KW));
-            const auto& key = get_server_property<const std::string>(CFG_SERVER_CONTROL_PLANE_KEY);
+            time_out = irods::get_server_property<const int>(irods::CFG_SERVER_CONTROL_PLANE_TIMEOUT);
+            port = irods::get_server_property<const int>(_port_keyword);
+            num_hash_rounds = irods::get_server_property<const int>(irods::CFG_SERVER_CONTROL_PLANE_ENCRYPTION_NUM_HASH_ROUNDS_KW);
+            encryption_algorithm.reset(irods::get_server_property<const std::string>(irods::CFG_SERVER_CONTROL_PLANE_ENCRYPTION_ALGORITHM_KW));
+            const auto& key = irods::get_server_property<const std::string>(irods::CFG_SERVER_CONTROL_PLANE_KEY);
             shared_secret.assign(key.begin(), key.end());
         } catch ( const irods::exception& e ) {
             return irods::error(e);
@@ -88,12 +88,11 @@ namespace irods {
                        _output );
         }
 
-
         // build the command to forward
-        control_plane_command cmd;
+        irods::control_plane_command cmd;
         cmd.command = _name;
-        cmd.options[ SERVER_CONTROL_OPTION_KW ] = SERVER_CONTROL_HOSTS_OPT;
-        cmd.options[ SERVER_CONTROL_HOST_KW ]   = _host;
+        cmd.options[ irods::SERVER_CONTROL_OPTION_KW ] = irods::SERVER_CONTROL_HOSTS_OPT;
+        cmd.options[ irods::SERVER_CONTROL_HOST_KW ]   = _host;
 
         // serialize using the generated avro class
         auto out = avro::memoryOutputStream();
@@ -102,15 +101,15 @@ namespace irods {
         avro::encode( *e, cmd );
         std::shared_ptr<std::vector<uint8_t>> data = avro::snapshot(*out);
 
-        buffer_crypt crypt(
+        irods::buffer_crypt crypt(
             shared_secret.size(),  // key size
             0,                     // salt size ( we dont send a salt )
             num_hash_rounds,       // num hash rounds
             encryption_algorithm->c_str() );
 
-        buffer_crypt::array_t iv;
-        buffer_crypt::array_t data_to_send;
-        buffer_crypt::array_t data_to_encrypt(
+        irods::buffer_crypt::array_t iv;
+        irods::buffer_crypt::array_t data_to_send;
+        irods::buffer_crypt::array_t data_to_encrypt(
             data->data(),
             data->data() + data->size() );
         irods::error ret = crypt.encrypt(
@@ -144,9 +143,9 @@ namespace irods {
         }
 
         // decrypt the message before passing to avro
-        buffer_crypt::array_t data_to_process;
+        irods::buffer_crypt::array_t data_to_process;
         const uint8_t* data_ptr = static_cast< const uint8_t* >( req.data() );
-        buffer_crypt::array_t data_to_decrypt(
+        irods::buffer_crypt::array_t data_to_decrypt(
             data_ptr,
             data_ptr + req.size() );
         ret = crypt.decrypt(
@@ -165,18 +164,16 @@ namespace irods {
         std::string rep_str(
             reinterpret_cast< char* >( data_to_process.data() ),
             data_to_process.size() );
-        if ( SERVER_CONTROL_SUCCESS != rep_str ) {
+        if (irods::SERVER_CONTROL_SUCCESS != rep_str) {
             // check if the result is really an error or a status
             if ( std::string::npos == rep_str.find( "[-]" ) ) {
                 _output += rep_str;
-
             }
             else {
                 _output += "{\n    \"invalid_message_format_from\" : \"" + conn_str + "\"\n},\n";
                 return ERROR(
                            CONTROL_PLANE_MESSAGE_ERROR,
                            rep_str );
-
             }
         }
 
@@ -184,12 +181,12 @@ namespace irods {
 
     } // forward_server_control_command
 
-    static error kill_server(
+    irods::error kill_server(
         const std::string& _pid_prop ) {
         int svr_pid;
         // no error case, resource servers have no re server
         try {
-            svr_pid = get_server_property<const int>(_pid_prop);
+            svr_pid = irods::get_server_property<const int>(_pid_prop);
         } catch ( const irods::exception& e ) {
             if ( e.code() == KEY_NOT_FOUND ) {
                 // if the property does not exist then the server
@@ -217,46 +214,46 @@ namespace irods {
 
     } // kill_server
 
-    static error server_operation_shutdown(
+    irods::error server_operation_shutdown(
         const std::string& _wait_option,
         const size_t       _wait_seconds,
-        std::string&       _output ) {
+        std::string&       _output )
+    {
         rodsEnv my_env;
         _reloadRodsEnv( my_env );
         _output += "{\n    \"shutting down\": \"";
         _output += my_env.rodsHost;
         _output += "\"\n},\n";
 
-        error ret;
         int sleep_time_out_milli_sec = 0;
         try {
-            sleep_time_out_milli_sec = get_server_property<const int>(CFG_SERVER_CONTROL_PLANE_TIMEOUT);
+            sleep_time_out_milli_sec = irods::get_server_property<const int>(irods::CFG_SERVER_CONTROL_PLANE_TIMEOUT);
         } catch ( const irods::exception& e ) {
             return irods::error(e);
         }
 
-        if ( SERVER_CONTROL_FORCE_AFTER_KW == _wait_option ) {
+        if ( irods::SERVER_CONTROL_FORCE_AFTER_KW == _wait_option ) {
             // convert sec to millisec for comparison
             sleep_time_out_milli_sec = _wait_seconds * 1000;
         }
 
-        int wait_milliseconds = SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
+        int wait_milliseconds = irods::SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
 
-        pause_server();
+        irods::pause_server();
 
 
+#if 1
+        // kill the delay server
+        rodsLog(LOG_DEBUG, "[%s:%d] - sending kill to delay server", __FUNCTION__, __LINE__);
+        irods::error ret = kill_server( irods::RE_PID_KW );
+        if ( !ret.ok() ) {
+            irods::log( PASS( ret ) );
+        }
+#else
         {
         int  sleep_time  = 0;
         bool timeout_flg = false;
 
-#if 0
-        // kill the delay server
-        rodsLog(LOG_DEBUG, "[%s:%d] - sending kill to delay server", __FUNCTION__, __LINE__);
-        ret = kill_server( irods::RE_PID_KW );
-        if ( !ret.ok() ) {
-            irods::log( PASS( ret ) );
-        }
-#endif
         stop_server(irods::server_process_t::re_server);
             while(!timeout_flg) {
                 // takes sec, millisec
@@ -274,6 +271,7 @@ namespace irods {
                 }
             } // while
         }
+#endif
 
         int  sleep_time  = 0;
         bool timeout_flg = false;
@@ -285,8 +283,8 @@ namespace irods {
                 0,
                 wait_milliseconds );
 
-            if ( SERVER_CONTROL_WAIT_FOREVER_KW != _wait_option ) {
-                sleep_time += SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
+            if ( irods::SERVER_CONTROL_WAIT_FOREVER_KW != _wait_option ) {
+                sleep_time += irods::SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
                 if ( sleep_time > sleep_time_out_milli_sec ) {
                     timeout_flg = true;
                 }
@@ -303,7 +301,7 @@ namespace irods {
         }
 
         // actually shut down the server
-        stop_server();
+        irods::stop_server();
 
         // block until server exits to return
         while( !timeout_flg ) {
@@ -312,12 +310,12 @@ namespace irods {
                 0,
                 wait_milliseconds );
 
-            sleep_time += SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
+            sleep_time += irods::SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
             if ( sleep_time > sleep_time_out_milli_sec ) {
                 timeout_flg = true;
             }
 
-            if (server_state_t::EXITED == get_server_state()) {
+            if (irods::server_state_t::EXITED == irods::get_server_state()) {
                 break;
             }
 
@@ -327,7 +325,7 @@ namespace irods {
 
     } // server_operation_shutdown
 
-    static error rule_engine_operation_shutdown(
+    irods::error rule_engine_operation_shutdown(
         const std::string&, // _wait_option,
         const size_t, //       _wait_seconds,
         std::string& _output)
@@ -338,11 +336,11 @@ namespace irods {
         _output += my_env.rodsHost;
         _output += "\"\n},\n";
 
-        stop_server();
+        irods::stop_server();
         return SUCCESS();
     } // rule_engine_server_operation_shutdown
 
-    static error operation_pause(
+    irods::error operation_pause(
         const std::string&, // _wait_option,
         const size_t, //       _wait_seconds,
         std::string& _output)
@@ -353,11 +351,11 @@ namespace irods {
         _output += my_env.rodsHost;
         _output += "\"\n},\n";
 
-        pause_server();
+        irods::pause_server();
         return SUCCESS();
     } // operation_pause
 
-    static error operation_resume(
+    irods::error operation_resume(
         const std::string&, // _wait_option,
         const size_t, //       _wait_seconds,
         std::string& _output)
@@ -368,11 +366,11 @@ namespace irods {
         _output += my_env.rodsHost;
         _output += "\"\n},\n";
 
-        resume_server();
+        irods::resume_server();
         return SUCCESS();
     } // operation_resume
 
-    static int get_pid_age(
+    int get_pid_age(
         pid_t _pid ) {
         std::stringstream pid_str; pid_str << _pid;
         std::vector<std::string> args;
@@ -404,23 +402,23 @@ namespace irods {
         return static_cast<int>( age );
     } // get_pid_age
 
-    static error operation_status(
+    irods::error operation_status(
         const std::string&, // _wait_option,
         const size_t, //       _wait_seconds,
         std::string& _output )
     {
         rodsEnv my_env;
-        _reloadRodsEnv( my_env );
+        _reloadRodsEnv(my_env);
 
         int re_pid = 0;
         // no error case, resource servers have no re server
         try {
-            re_pid = get_server_property<const int>(irods::RE_PID_KW);
+            re_pid = irods::get_server_property<const int>(irods::RE_PID_KW);
         } catch ( const irods::exception& ) {}
 
         int xmsg_pid = 0;
         try {
-            xmsg_pid = get_server_property<const int>(irods::XMSG_PID_KW);
+            xmsg_pid = irods::get_server_property<const int>(irods::XMSG_PID_KW);
         } catch ( const irods::exception& ) {}
 
         int my_pid = getpid();
@@ -434,7 +432,7 @@ namespace irods {
             {"xmsg_server_pid", xmsg_pid} // Should be int
         };
 
-        obj["status"] = get_server_state();
+        obj["status"] = irods::get_server_state();
 
         auto arr = json::array();
 
@@ -458,7 +456,7 @@ namespace irods {
         return SUCCESS();
     } // operation_status
 
-    static error operation_ping(
+    irods::error operation_ping(
         const std::string&, // _wait_option,
         const size_t, //       _wait_seconds,
         std::string& _output ) {
@@ -472,7 +470,7 @@ namespace irods {
         return SUCCESS();
     }
 
-    bool server_control_executor::compare_host_names(
+    bool compare_host_names(
         const std::string& _hn1,
         const std::string& _hn2)
     {
@@ -489,6 +487,10 @@ namespace irods {
         }
         return we_are_the_host;
     } // compare_host_names
+
+}
+
+namespace irods {
 
     bool server_control_executor::is_host_in_list(
         const std::string& hn,
@@ -515,18 +517,20 @@ namespace irods {
     } // dtor
 
     server_control_executor::server_control_executor(
-        const std::string& _prop ) : port_prop_( _prop )  {
-        if ( port_prop_.empty() ) {
+        const std::string& prop)
+        : port_prop_{prop}
+     {
+        if (port_prop_.empty()) {
             THROW(
                 SYS_INVALID_INPUT_PARAM,
-                "control_plane_port key is empty" );
+                "control_plane_port key is empty");
         }
 
-        op_map_[ SERVER_CONTROL_PAUSE ]    = operation_pause;
-        op_map_[ SERVER_CONTROL_RESUME ]   = operation_resume;
-        op_map_[ SERVER_CONTROL_STATUS ]   = operation_status;
-        op_map_[ SERVER_CONTROL_PING ]     = operation_ping;
-        if ( _prop == CFG_RULE_ENGINE_CONTROL_PLANE_PORT ) {
+        op_map_[SERVER_CONTROL_PAUSE]    = operation_pause;
+        op_map_[SERVER_CONTROL_RESUME]   = operation_resume;
+        op_map_[SERVER_CONTROL_STATUS]   = operation_status;
+        op_map_[SERVER_CONTROL_PING]     = operation_ping;
+        if ( prop == CFG_RULE_ENGINE_CONTROL_PLANE_PORT ) {
             op_map_[ SERVER_CONTROL_SHUTDOWN ] = rule_engine_operation_shutdown;
         }
         else {
@@ -870,7 +874,7 @@ namespace irods {
         }
 
         // capture and validate the option parameter
-        auto itr = _cmd.options.find(SERVER_CONTROL_OPTION_KW);
+        auto itr = _cmd.options.find(irods::SERVER_CONTROL_OPTION_KW);
         if (_cmd.options.end() == itr) {
             return ERROR(
                        SYS_INVALID_INPUT_PARAM,
@@ -890,7 +894,7 @@ namespace irods {
 
         // capture and validate the server hosts, skip the option key
         for (auto&& opt : _cmd.options) {
-            if (SERVER_CONTROL_OPTION_KW == opt.first) {
+            if (irods::SERVER_CONTROL_OPTION_KW == opt.first) {
                 continue;
             }
             else if (SERVER_CONTROL_FORCE_AFTER_KW == opt.first) {
@@ -966,20 +970,22 @@ namespace irods {
         return fwd_err;
     } // process_host_list
 
+    
+
     error server_control_executor::process_operation(
         const zmq::message_t& _msg,
-        std::string&          _output ) {
-        if ( _msg.size() <= 0 ) {
+        std::string&          _output)
+    {
+        if (_msg.size() <= 0) {
             return SUCCESS();
         }
 
         error final_ret = SUCCESS();
 
-        int port, num_hash_rounds;
+        int num_hash_rounds;
         boost::optional<const std::string&> encryption_algorithm;
         buffer_crypt::array_t shared_secret;
         try {
-            port = get_server_property<const int>(port_prop_);
             num_hash_rounds = get_server_property<const int>(CFG_SERVER_CONTROL_PLANE_ENCRYPTION_NUM_HASH_ROUNDS_KW);
             encryption_algorithm.reset(get_server_property<const std::string>(CFG_SERVER_CONTROL_PLANE_ENCRYPTION_ALGORITHM_KW));
             const auto& key = get_server_property<const std::string>(CFG_SERVER_CONTROL_PLANE_KEY);
@@ -1011,7 +1017,6 @@ namespace irods {
             irods::log( PASS( ret ) );
             return PASS( ret );
         }
-
 
         auto in = avro::memoryInputStream(
                 static_cast<const uint8_t*>(
@@ -1112,4 +1117,4 @@ namespace irods {
 
     } // process_operation
 
-}; // namespace irods
+} // namespace irods

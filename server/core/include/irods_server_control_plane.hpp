@@ -68,6 +68,14 @@ namespace irods {
             /// \brief Vector containing a list of hostnames
             typedef std::vector<std::string> host_list_t;
 
+            /// \brief Holds parameters and name of an iRODS grid command
+            struct grid_command {
+                std::string cmd_name;
+                std::string cmd_option;
+                std::string wait_option;
+                size_t wait_seconds;
+            };
+
             // members
             /// \brief Process received ZMQ message as a control plane operation
             ///
@@ -231,18 +239,6 @@ namespace irods {
                 //const std::string& port_keyword,
                 //const command_parameters_t& command_params);
 
-            /// \brief Compares two hostnames and determines if they are equal
-            ///
-            /// \param[in] lhs - First hostname to compare
-            /// \param[in] rhs - Second hostname to compare
-            ///
-            /// \returns bool
-            /// \retval true if the strings match or dot-notated hostname contains
-            /// the other as a substring; otherwise, false.
-            bool compare_host_names(
-                const std::string& lhs,
-                const std::string& rhs);
-
             /// \brief Checks if specified hostname is in the list of hostnames
             ///
             /// \param[in] hn - Hostname to search for
@@ -255,9 +251,13 @@ namespace irods {
                 const host_list_t& hosts);
 
             // attributes
+            /// \brief Server configuration keyword from which server control plane port is derived
             const std::string port_prop_;
+            /// \brief Maps control plane commands to functions
             std::unordered_map<std::string, ctrl_func_t> op_map_;
+            /// \brief Hostname of the local iRODS server
             std::string my_host_name_;
+            /// \brief Hostnme of local zone catalog provider
             std::string icat_host_name_;
 
     }; // class server_control_executor
