@@ -49,6 +49,9 @@ namespace irods {
     /// \since 4.1.0
     class server_control_executor {
         public:
+            /// \brief Function signature for a control plane operation
+            typedef std::function<error(const std::string&, const size_t, std::string&)> ctrl_func_t;
+
             // Disables copy
             server_control_executor(const server_control_executor&) = delete;
             server_control_executor& operator=(const server_control_executor&) = delete;
@@ -56,13 +59,13 @@ namespace irods {
             /// \brief Constructor
             ///
             /// \param[in] prop - Control plane port property from server config
-            server_control_executor(const std::string& prop);
+            /// \param[in] op_map - Map of iRODS grid commands to functions
+            server_control_executor(
+                const std::string& prop,
+                const std::unordered_map<std::string, ctrl_func_t>& op_map);
 
             /// \brief operator operator for use in the control thread
             void operator()();
-
-            /// \brief Function signature for a control plane operation
-            typedef std::function<error(const std::string&, const size_t, std::string&)> ctrl_func_t;
 
         private:
             /// \brief Vector containing a list of hostnames
@@ -278,7 +281,10 @@ namespace irods {
             /// \brief Constructor
             ///
             /// \param[in] prop - Control plane port property from server config
-            server_control_plane(const std::string& prop);
+            /// \param[in] op_map - Map of iRODS grid commands to functions
+            server_control_plane(
+                const std::string& prop,
+                const std::unordered_map<std::string, server_control_executor::ctrl_func_t>& op_map);
 
             /// \brief Destructor
             ///

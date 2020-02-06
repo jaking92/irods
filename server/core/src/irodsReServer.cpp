@@ -1,13 +1,14 @@
+#include "connection_pool.hpp"
 #include "initServer.hpp"
+#include "irodsReServer.hpp"
 #include "irods_at_scope_exit.hpp"
+#include "irods_server_control_plane.hpp"
 #include "irods_delay_queue.hpp"
 #include "irods_log.hpp"
 #include "irods_query.hpp"
 #include "irods_re_structs.hpp"
 #include "irods_server_properties.hpp"
 #include "irods_server_state.hpp"
-#include "thread_pool.hpp"
-#include "irodsReServer.hpp"
 #include "miscServerFunct.hpp"
 #include "query_processor.hpp"
 #include "rodsClient.h"
@@ -16,7 +17,10 @@
 #include "rsLog.hpp"
 #include "ruleExecDel.h"
 #include "ruleExecSubmit.h"
-#include "connection_pool.hpp"
+#include "sockComm.h"
+#include "thread_pool.hpp"
+
+#include "json.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -386,6 +390,130 @@ namespace {
         };
         return {qstr, job};
     }
+
+    irods::error operation_status(
+        const std::string&,
+        const size_t,
+        std::string& _output)
+    {
+        using json = nlohmann::json;
+
+        rodsEnv my_env;
+        _reloadRodsEnv(my_env);
+
+        json obj{
+            {"hostname", my_env.rodsHost},
+            {"re_server_pid", getpid()},
+            {"status", irods::get_server_state()}
+        };
+
+        _output += obj.dump(4);
+        _output += ",";
+
+        return SUCCESS();
+    } // operation_status
+
+    // TODO: Identify server process
+    irods::error operation_ping(
+        const std::string&,
+        const size_t,
+        std::string& _output)
+    {
+        _output += "{\n    \"status\": \"alive\"\n},\n";
+        return SUCCESS();
+    }
+
+    // TODO: Identify server process
+    irods::error operation_pause(
+        const std::string&,
+        const size_t,
+        std::string& _output)
+    {
+        rodsEnv my_env;
+        _reloadRodsEnv(my_env);
+
+        _output += "{\n    \"pausing\": \"";
+        _output += my_env.rodsHost;
+        _output += "\"\n},\n";
+
+        irods::pause_server();
+        return SUCCESS();
+    } // operation_pause
+
+    // TODO: Identify server process
+    irods::error operation_resume(
+        const std::string&,
+        const size_t,
+        std::string& _output)
+    {
+        rodsEnv my_env;
+        _reloadRodsEnv(my_env);
+
+        _output += "{\n    \"resuming\": \"";
+        _output += my_env.rodsHost;
+        _output += "\"\n},\n";
+
+        irods::resume_server();
+        return SUCCESS();
+    } // operation_resume
+
+    irods::error operation_shutdown(
+        const std::string& _wait_option,
+        const size_t       _wait_seconds,
+        std::string&       _output )
+    {
+        rodsEnv my_env;
+        _reloadRodsEnv( my_env );
+        _output += "{\n    \"shutting down\": \"";
+        _output += my_env.rodsHost;
+        _output += ",    \"server_process\": \"re_server\"";
+        _output += "\"\n},\n";
+
+        int sleep_time_out_milli_sec = 0;
+        try {
+            sleep_time_out_milli_sec = irods::get_server_property<const int>(irods::CFG_SERVER_CONTROL_PLANE_TIMEOUT);
+        } catch (const irods::exception& e) {
+            return irods::error(e);
+        }
+
+        if ( irods::SERVER_CONTROL_FORCE_AFTER_KW == _wait_option ) {
+            // convert sec to millisec for comparison
+            sleep_time_out_milli_sec = _wait_seconds * 1000;
+        }
+
+        irods::stop_server();
+
+        // block until server exits to return
+        const int wait_milliseconds = irods::SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
+        int sleep_time{};
+        bool timeout_flg{};
+        while(!timeout_flg) {
+            // takes sec, millisec
+            rodsSleep(0, wait_milliseconds * 1000);
+            sleep_time += wait_milliseconds;
+            if (sleep_time > sleep_time_out_milli_sec) {
+                timeout_flg = true;
+            }
+
+            if (irods::server_state_t::EXITED == irods::get_server_state()) {
+                break;
+            }
+        } // while
+        return SUCCESS();
+    } // server_operation_shutdown
+
+    using operation_map_t = std::unordered_map<std::string, irods::server_control_executor::ctrl_func_t>;
+
+    operation_map_t build_control_plan_op_map()
+    {
+        operation_map_t op_map;
+        op_map[irods::SERVER_CONTROL_PAUSE] = operation_pause;
+        op_map[irods::SERVER_CONTROL_RESUME] = operation_resume;
+        op_map[irods::SERVER_CONTROL_STATUS] = operation_status;
+        op_map[irods::SERVER_CONTROL_PING] = operation_ping;
+        op_map[irods::SERVER_CONTROL_SHUTDOWN] = operation_shutdown;
+        return op_map;
+    }
 }
 
 int main() {
@@ -449,10 +577,13 @@ int main() {
         env.irodsConnectionPoolRefreshTime);
 
     try {
-#if 1
+        irods::server_control_plane ctrl_plane(
+            irods::CFG_SERVER_CONTROL_PLANE_PORT,
+            build_control_plan_op_map());
         while(!re_server_terminated) {
             using state = irods::server_state_t;
-            const auto s = re_server_state();
+            //const auto s = re_server_state();
+            const auto s = irods::get_server_state();
             if (state::STOPPED == s) {
                 irods::log(LOG_NOTICE,
                     "delay server has been stopped.");
@@ -474,9 +605,6 @@ int main() {
                         //% the_server_state.c_str()).str());
                 }
             }
-#else
-        while(!re_server_terminated) {
-#endif
 
             try {
                 auto delay_queue_processor = make_delay_queue_query_processor(worker_conn_pool, thread_pool, queue);

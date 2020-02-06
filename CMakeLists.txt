@@ -1299,6 +1299,7 @@ endforeach()
 add_executable(
   irodsReServer
   ${CMAKE_SOURCE_DIR}/server/core/src/irodsReServer.cpp
+  ${CMAKE_SOURCE_DIR}/server/core/src/irods_server_control_plane.cpp
   )
 target_link_libraries(
   irodsReServer
@@ -1306,9 +1307,11 @@ target_link_libraries(
   irods_server
   irods_client
   irods_common
+  ${IRODS_EXTERNALS_FULLPATH_AVRO}/lib/libavrocpp.so
   ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_system.so
   ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_filesystem.so
   ${IRODS_EXTERNALS_FULLPATH_BOOST}/lib/libboost_thread.so
+  ${IRODS_EXTERNALS_FULLPATH_ZMQ}/lib/libzmq.so
   rt
   ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_DL_LIBS}
@@ -1324,7 +1327,10 @@ target_include_directories(
   ${CMAKE_BINARY_DIR}/lib/core/include
   ${CMAKE_SOURCE_DIR}/lib/core/include
   ${CMAKE_SOURCE_DIR}/lib/api/include
+  ${IRODS_EXTERNALS_FULLPATH_AVRO}/include
   ${IRODS_EXTERNALS_FULLPATH_BOOST}/include
+  ${IRODS_EXTERNALS_FULLPATH_ZMQ}/include
+  ${IRODS_EXTERNALS_FULLPATH_CPPZMQ}/include
   )
 set_property(TARGET irodsReServer PROPERTY CXX_STANDARD ${IRODS_CXX_STANDARD})
 target_compile_definitions(irodsReServer PRIVATE ${IRODS_COMPILE_DEFINITIONS})

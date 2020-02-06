@@ -61,9 +61,10 @@ agentProc_t *ConnReqHead = NULL;
 agentProc_t *SpawnReqHead = NULL;
 agentProc_t *BadReqHead = NULL;
 
-#include <boost/thread/thread.hpp>
-#include <boost/thread/mutex.hpp>
+#include "boost/lexical_cast.hpp"
 #include <boost/thread/condition.hpp>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/thread.hpp>
 boost::mutex              ConnectedAgentMutex;
 boost::mutex              BadReqMutex;
 boost::thread*            ReadWorkerThread[NUM_READ_WORKER_THR];
@@ -148,10 +149,249 @@ namespace {
         return 0;
     }
 
+    int get_pid_age(pid_t _pid)
+    {
+        std::stringstream pid_str; pid_str << _pid;
+        std::vector<std::string> args;
+        args.push_back( pid_str.str() );
+
+        std::string pid_age;
+        irods::error ret = get_script_output_single_line(
+                               "python",
+                               "pid_age.py",
+                               args,
+                               pid_age );
+        if ( !ret.ok() ) {
+            irods::log( PASS( ret ) );
+            return 0;
+        }
+
+        double age = 0.0;
+        try {
+            age = boost::lexical_cast<double>( pid_age );
+        }
+        catch ( const boost::bad_lexical_cast& ) {
+            rodsLog(
+                LOG_ERROR,
+                "get_pid_age bad lexical cast for [%s]",
+                pid_age.c_str() );
+
+        }
+
+        return static_cast<int>( age );
+    } // get_pid_age
+
+    irods::error kill_server(
+        const std::string& _pid_prop ) {
+        int svr_pid;
+        // no error case, resource servers have no re server
+        try {
+            svr_pid = irods::get_server_property<const int>(_pid_prop);
+        } catch ( const irods::exception& e ) {
+            if ( e.code() == KEY_NOT_FOUND ) {
+                // if the property does not exist then the server
+                // in question is not running
+                return SUCCESS();
+            }
+            return irods::error(e);
+        }
+
+        std::stringstream pid_str; pid_str << svr_pid;
+        std::vector<std::string> args;
+        args.push_back( pid_str.str() );
+
+        std::string output;
+        irods::error ret = get_script_output_single_line(
+                  "python",
+                  "kill_pid.py",
+                  args,
+                  output );
+        if ( !ret.ok() ) {
+            return PASS( ret );
+        }
+
+        return SUCCESS();
+
+    } // kill_server
+
+    irods::error operation_ping(
+        const std::string&,
+        const size_t,
+        std::string& _output)
+    {
+        _output += "{\n    \"status\": \"alive\"\n},\n";
+        return SUCCESS();
+    }
+
+    irods::error operation_status(
+        const std::string&,
+        const size_t,
+        std::string& _output)
+    {
+        rodsEnv my_env;
+        _reloadRodsEnv(my_env);
+
+        int re_pid = 0;
+        // no error case, resource servers have no re server
+        try {
+            re_pid = irods::get_server_property<const int>(irods::RE_PID_KW);
+        } catch ( const irods::exception& ) {}
+
+        int xmsg_pid = 0;
+        try {
+            xmsg_pid = irods::get_server_property<const int>(irods::XMSG_PID_KW);
+        } catch ( const irods::exception& ) {}
+
+        int my_pid = getpid();
+
+        using json = nlohmann::json;
+
+        json obj{
+            {"hostname", my_env.rodsHost},
+            {"irods_server_pid", my_pid}
+        };
+
+        obj["status"] = irods::get_server_state();
+
+        auto arr = json::array();
+
+        std::vector<int> pids;
+        getAgentProcPIDs( pids );
+        for ( size_t i = 0; i < pids.size(); ++i ) {
+            int pid = pids[i];
+            int age = get_pid_age( pids[i] );
+
+            arr.push_back(json::object({
+                {"agent_pid", pid},
+                {"age", age}
+            }));
+        }
+
+        obj["agents"] = arr;
+
+        _output += obj.dump(4);
+        _output += ",";
+
+        return SUCCESS();
+    } // operation_status
+
+    irods::error operation_pause(
+        const std::string&,
+        const size_t,
+        std::string& _output)
+    {
+        rodsEnv my_env;
+        _reloadRodsEnv( my_env );
+        _output += "{\n    \"pausing\": \"";
+        _output += my_env.rodsHost;
+        _output += "\"\n},\n";
+
+        irods::pause_server();
+        return SUCCESS();
+    } // operation_pause
+
+    irods::error operation_resume(
+        const std::string&,
+        const size_t,
+        std::string& _output)
+    {
+        rodsEnv my_env;
+        _reloadRodsEnv( my_env );
+        _output += "{\n    \"resuming\": \"";
+        _output += my_env.rodsHost;
+        _output += "\"\n},\n";
+
+        irods::resume_server();
+        return SUCCESS();
+    } // operation_resume
+
+    irods::error server_operation_shutdown(
+        const std::string& _wait_option,
+        const size_t       _wait_seconds,
+        std::string&       _output )
+    {
+        rodsEnv my_env;
+        _reloadRodsEnv( my_env );
+        _output += "{\n    \"shutting down\": \"";
+        _output += my_env.rodsHost;
+        _output += ",    \"server_process\": \"irods_server\"";
+        _output += "\"\n},\n";
+
+        int sleep_time_out_milli_sec = 0;
+        try {
+            sleep_time_out_milli_sec = irods::get_server_property<const int>(irods::CFG_SERVER_CONTROL_PLANE_TIMEOUT);
+        } catch ( const irods::exception& e ) {
+            return irods::error(e);
+        }
+
+        if ( irods::SERVER_CONTROL_FORCE_AFTER_KW == _wait_option ) {
+            // convert sec to millisec for comparison
+            sleep_time_out_milli_sec = _wait_seconds * 1000;
+        }
+
+        int wait_milliseconds = irods::SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
+
+        irods::pause_server();
+
+        int  sleep_time  = 0;
+        bool timeout_flg = false;
+        int  proc_cnt = getAgentProcCnt();
+
+        while ( proc_cnt > 0 && !timeout_flg ) {
+            // takes sec, millisec
+            rodsSleep(0, wait_milliseconds * 1000);
+
+            if ( irods::SERVER_CONTROL_WAIT_FOREVER_KW != _wait_option ) {
+                sleep_time += irods::SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
+                if ( sleep_time > sleep_time_out_milli_sec ) {
+                    timeout_flg = true;
+                }
+            }
+
+            proc_cnt = getAgentProcCnt();
+
+        } // while
+
+        // kill the xmessage server
+        irods::error ret = kill_server( irods::XMSG_PID_KW );
+        if ( !ret.ok() ) {
+            irods::log( PASS( ret ) );
+        }
+
+        // actually shut down the server
+        irods::stop_server();
+
+        // block until server exits to return
+        while( !timeout_flg ) {
+            // takes sec, millisec
+            rodsSleep(0, wait_milliseconds * 1000);
+
+            sleep_time += irods::SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
+            if ( sleep_time > sleep_time_out_milli_sec ) {
+                timeout_flg = true;
+            }
+
+            if (irods::server_state_t::EXITED == irods::get_server_state()) {
+                break;
+            }
+
+        } // while
+
+        return SUCCESS();
+
+    } // server_operation_shutdown
+
     using operation_map_t = std::unordered_map<std::string, irods::server_control_executor::ctrl_func_t>;
 
     operation_map_t build_control_plan_op_map()
     {
+        operation_map_t op_map;
+        op_map[irods::SERVER_CONTROL_PAUSE] = operation_pause;
+        op_map[irods::SERVER_CONTROL_RESUME] = operation_resume;
+        op_map[irods::SERVER_CONTROL_STATUS] = operation_status;
+        op_map[irods::SERVER_CONTROL_PING] = operation_ping;
+        op_map[irods::SERVER_CONTROL_SHUTDOWN] = server_operation_shutdown;
+        return op_map;
     }
 }
 
@@ -462,7 +702,8 @@ serverMain( char *logDir ) {
     // Launch the Control Plane
     try {
         irods::server_control_plane ctrl_plane(
-            irods::CFG_SERVER_CONTROL_PLANE_PORT );
+            irods::CFG_RULE_ENGINE_CONTROL_PLANE_PORT,
+            build_control_plan_op_map());
 
         status = startProcConnReqThreads();
         if(status < 0) {
