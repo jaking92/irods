@@ -5,8 +5,6 @@
 #include <unordered_map>
 
 namespace irods {
-    /// \class server_process_t
-    ///
     /// \brief Enumeration epresenting different iRODS server processes
     ///
     /// NOTE: irods_server is the original server process from which come the other server processes.
@@ -20,8 +18,6 @@ namespace irods {
         re_server
     };
 
-    /// \class server_state_t
-    ///
     /// \brief Enumeration representing different states for an iRODS server process
     ///
     /// \since 4.2.8
@@ -32,8 +28,6 @@ namespace irods {
         EXITED
     };
 
-    /// \class server_state_mgr
-    ///
     /// \brief Manager of the state of various iRODS server processes.
     ///
     /// This Singleton maintains a map of iRODS server processes and their states.
@@ -53,8 +47,6 @@ namespace irods {
             /// \since 4.2.8
             static server_state_mgr& instance();
 
-            /// \fn void server_state(const server_state_t, const server_process_t p)
-            ///
             /// \brief Sets the state of the server process p to state s
             ///
             /// \param[in] s - Server state to which the server process will be set.
@@ -65,8 +57,6 @@ namespace irods {
                 const server_state_t s,
                 const server_process_t p = server_process_t::irods_server);
 
-            /// \fn void server_state(const server_process_t p)
-            ///
             /// \brief Returns the state of the server process p
             ///
             /// \param[in] p - Server process being targeted. Defaults to irods_server.
@@ -79,8 +69,6 @@ namespace irods {
                 const server_process_t p = server_process_t::irods_server);
 
         private:
-            /// \fn server_state_mgr()
-            ///
             /// \brief Default constructor for server_state_mgr
             ///
             /// Initiates all server process states to RUNNING.
@@ -88,15 +76,11 @@ namespace irods {
             /// \since 4.2.8
             server_state_mgr();
 
-            /// \var mutex_
-            ///
             /// \brief Mutex for locking the server process state map
             ///
             /// \since 4.2.8
             std::mutex mutex_;
 
-            /// \var state_
-            ///
             /// \brief Map of iRODS server process and their states
             ///
             /// \since 4.2.8
@@ -104,8 +88,6 @@ namespace irods {
 
     }; // class server_state_mgr
 
-    /// \fn server_state_t get_server_state(const server_process_t p = server_process_t::irods_server)
-    ///
     /// \brief Convenience function for getting the state of the indicated server process.
     ///
     /// \param[in] p - Server process being targeted. Defaults to irods_server.
@@ -116,8 +98,6 @@ namespace irods {
     /// \since 4.2.8
     auto get_server_state(const server_process_t p = server_process_t::irods_server) -> server_state_t;
 
-    /// \fn void pause_server(const server_process_t p = server_process_t::irods_server)
-    ///
     /// \brief Convenience function for setting the state of the indicated server process to PAUSED.
     ///
     /// \param[in] p - Server process being targeted. Defaults to irods_server.
@@ -125,8 +105,6 @@ namespace irods {
     /// \since 4.2.8
     auto pause_server(const server_process_t p = server_process_t::irods_server) -> void;
 
-    /// \fn void resume_server(const server_process_t p = server_process_t::irods_server)
-    ///
     /// \brief Convenience function for setting the state of the indicated server process to RUNNING.
     ///
     /// \param[in] p - Server process being targeted. Defaults to irods_server.
@@ -134,8 +112,6 @@ namespace irods {
     /// \since 4.2.8
     auto resume_server(const server_process_t p = server_process_t::irods_server) -> void;
 
-    /// \fn void stop_server(const server_process_t p = server_process_t::irods_server)
-    ///
     /// \brief Convenience function for setting the state of the indicated server process to STOPPED.
     ///
     /// \param[in] p - Server process being targeted. Defaults to irods_server.

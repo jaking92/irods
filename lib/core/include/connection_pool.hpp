@@ -11,12 +11,12 @@
 
 namespace irods
 {
+    /// \brief Holds a reusable set of persistent iRODS client connections
     class connection_pool
     {
     public:
-        // A wrapper around a connection in the pool.
-        // On destruction, the underlying connection is immediately returned
-        // to the pool.
+        /// \brief A wrapper around a connection in the pool
+        /// On destruction, the underlying connection is immediately returned to the pool.
         class connection_proxy
         {
         public:

@@ -203,6 +203,7 @@ def convert_irodsenv():
         container_name['irods_server_control_plane_encryption_num_hash_rounds'] = 16
         container_name['irods_server_control_plane_key'] = 'TEMPORARY__32byte_ctrl_plane_key'
         container_name['irods_server_control_plane_port'] = 1248
+        container_name['rule_engine_control_plane_port'] = 1249
         container_name['irods_server_control_plane_timeout_milliseconds'] = 10000
         container_name['irods_maximum_size_for_single_buffer_in_megabytes'] = 32
         container_name['irods_default_number_of_transfer_threads'] = 4

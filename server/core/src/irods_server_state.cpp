@@ -23,11 +23,6 @@ namespace irods {
         const server_process_t p)
     {
         std::unique_lock<std::mutex> l{mutex_};
-        rodsLog(LOG_NOTICE, "[%s:%d] - setting server state for [%d]:[%d]",
-            __FUNCTION__,
-            __LINE__,
-            p,
-            s);
         state_[p] = s;
     }
 
@@ -35,11 +30,6 @@ namespace irods {
         const server_process_t p)
     {
         std::unique_lock<std::mutex> l{mutex_};
-        rodsLog(LOG_NOTICE, "[%s:%d] - getting server state for [%d]:[%d]",
-            __FUNCTION__,
-            __LINE__,
-            p,
-            state_[p]);
         return state_[p];
     }
 

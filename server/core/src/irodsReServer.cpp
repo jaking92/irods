@@ -33,6 +33,7 @@
 #include <boost/format.hpp>
 
 namespace {
+    static std::condition_variable term_cv;
     static std::atomic_bool re_server_terminated{};
 
     irods::server_state_t re_server_state()
@@ -460,13 +461,14 @@ namespace {
     irods::error operation_shutdown(
         const std::string& _wait_option,
         const size_t       _wait_seconds,
-        std::string&       _output )
+        std::string&       _output)
     {
         rodsEnv my_env;
         _reloadRodsEnv( my_env );
         _output += "{\n    \"shutting down\": \"";
         _output += my_env.rodsHost;
-        _output += ",    \"server_process\": \"re_server\"";
+        //_output += ",\n    \"server_process\": \"";
+        //_output += "re_server";
         _output += "\"\n},\n";
 
         int sleep_time_out_milli_sec = 0;
@@ -481,22 +483,31 @@ namespace {
             sleep_time_out_milli_sec = _wait_seconds * 1000;
         }
 
+        //irods::pause_server();
+        //std::raise(SIGINT);
+        //irods::stop_server();
+
         irods::stop_server();
+        std::raise(SIGINT);
 
         // block until server exits to return
         const int wait_milliseconds = irods::SERVER_CONTROL_POLLING_TIME_MILLI_SEC;
         int sleep_time{};
         bool timeout_flg{};
         while(!timeout_flg) {
-            // takes sec, millisec
+            if (irods::server_state_t::EXITED == irods::get_server_state()) {
+                irods::log(LOG_NOTICE,
+                    "server state exited, we out");
+                break;
+            }
+            irods::log(LOG_NOTICE,
+                "not exited yet -- sleeping...");
             rodsSleep(0, wait_milliseconds * 1000);
             sleep_time += wait_milliseconds;
             if (sleep_time > sleep_time_out_milli_sec) {
+                irods::log(LOG_NOTICE,
+                    "timed out!!");
                 timeout_flg = true;
-            }
-
-            if (irods::server_state_t::EXITED == irods::get_server_state()) {
-                break;
             }
         } // while
         return SUCCESS();
@@ -517,7 +528,6 @@ namespace {
 }
 
 int main() {
-    static std::condition_variable term_cv;
     static std::mutex term_m;
     const auto signal_exit_handler = [](int signal) {
         irods::log(LOG_NOTICE,
@@ -550,7 +560,7 @@ int main() {
         std::unique_lock<std::mutex> sleep_lock{term_m};
         const auto until = std::chrono::system_clock::now() + std::chrono::seconds(sleep_time);
         if (std::cv_status::no_timeout == term_cv.wait_until(sleep_lock, until)) {
-            irods::log(LOG_DEBUG, "I have been awoken by a notify!");
+            irods::log(LOG_NOTICE, "I have been awoken by a notify!");
         }
     };
 
@@ -568,22 +578,39 @@ int main() {
 
     rodsEnv env{};
     _getRodsEnv(env);
-    auto worker_conn_pool = std::make_shared<irods::connection_pool>(
-        thread_count,
-        env.rodsHost,
-        env.rodsPort,
-        env.rodsUserName,
-        env.rodsZone,
-        env.irodsConnectionPoolRefreshTime);
-
     try {
         irods::server_control_plane ctrl_plane(
-            irods::CFG_SERVER_CONTROL_PLANE_PORT,
+            irods::CFG_RULE_ENGINE_CONTROL_PLANE_PORT,
             build_control_plan_op_map());
+
+        irods::at_scope_exit<std::function<void()>> dp{[]()
+        {
+            rodsLog(LOG_NOTICE, "disconnected pool");
+        }};
+
+        auto worker_conn_pool = std::make_shared<irods::connection_pool>(
+            thread_count,
+            env.rodsHost,
+            env.rodsPort,
+            env.rodsUserName,
+            env.rodsZone,
+            env.irodsConnectionPoolRefreshTime);
+
+        irods::at_scope_exit<std::function<void()>> tb{[]()
+        {
+            rodsLog(LOG_NOTICE, "leaving main try block");
+        }};
+
         while(!re_server_terminated) {
             using state = irods::server_state_t;
             //const auto s = re_server_state();
+            irods::log(LOG_NOTICE,
+                "getting server state...");
             const auto s = irods::get_server_state();
+            irods::log(LOG_NOTICE,
+                "server state acquired");
+            //irods::log(LOG_NOTICE,
+                //(boost::format("re server state is [%d]") % s).str());
             if (state::STOPPED == s) {
                 irods::log(LOG_NOTICE,
                     "delay server has been stopped.");
@@ -594,6 +621,8 @@ int main() {
             }
             else if (state::PAUSED == s) {
                 // TODO: This is from main server
+                irods::log(LOG_NOTICE,
+                    "re server is paused...");
                 std::this_thread::sleep_for(std::chrono::seconds(1));
                 continue;
             }
@@ -604,6 +633,8 @@ int main() {
                         //(boost::format("invalid delay server state [%s]")
                         //% the_server_state.c_str()).str());
                 }
+                irods::log(LOG_NOTICE,
+                    "delay server is running");
             }
 
             try {
@@ -626,8 +657,15 @@ int main() {
             } catch(const irods::exception& e) {
                 irods::log(e);
             }
+            irods::log(LOG_NOTICE,
+                "going to sleep...");
             go_to_sleep();
+            irods::log(LOG_NOTICE,
+                "I'm awake! bottom of the loop");
         }
+        irods::server_state_mgr::instance().server_state(
+            irods::server_state_t::EXITED);
+        irods::log(LOG_NOTICE, "out of the loop");
     }
     catch (const irods::exception& e) {
         irods::log(LOG_ERROR,
@@ -636,7 +674,4 @@ int main() {
         return e.code();
     }
     irods::log(LOG_NOTICE, "RE server exiting...");
-    irods::server_state_mgr::instance().server_state(
-        irods::server_state_t::EXITED,
-        irods::server_process_t::re_server);
 }

@@ -314,7 +314,8 @@ namespace {
         _reloadRodsEnv( my_env );
         _output += "{\n    \"shutting down\": \"";
         _output += my_env.rodsHost;
-        _output += ",    \"server_process\": \"irods_server\"";
+        //_output += ",    \"server_process\": \"";
+        //_output += "irods_server";
         _output += "\"\n},\n";
 
         int sleep_time_out_milli_sec = 0;
@@ -702,7 +703,7 @@ serverMain( char *logDir ) {
     // Launch the Control Plane
     try {
         irods::server_control_plane ctrl_plane(
-            irods::CFG_RULE_ENGINE_CONTROL_PLANE_PORT,
+            irods::CFG_SERVER_CONTROL_PLANE_PORT,
             build_control_plan_op_map());
 
         status = startProcConnReqThreads();

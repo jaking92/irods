@@ -338,6 +338,10 @@ extern "C" {
             _env->irodsCtrlPlanePort );
 
         capture_integer_property(
+            irods::CFG_RULE_ENGINE_CONTROL_PLANE_PORT,
+            _env->irodsReCtrlPlanePort );
+
+        capture_integer_property(
             irods::CFG_IRODS_MAX_SIZE_FOR_SINGLE_BUFFER,
             _env->irodsMaxSizeForSingleBuffer );
 
