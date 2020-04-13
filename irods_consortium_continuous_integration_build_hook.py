@@ -12,15 +12,6 @@ import time
 
 import irods_python_ci_utilities
 
-
-def build(icommands_git_repository, icommands_git_commitish, debug_build, output_root_directory, externals_directory):
-    install_building_dependencies(externals_directory)
-    irods_build_dir = build_irods(debug_build)
-    install_irods_dev_and_runtime(irods_build_dir)
-    icommands_build_dir = build_icommands(icommands_git_repository, icommands_git_commitish, debug_build)
-    if output_root_directory:
-        copy_output_packages(irods_build_dir, icommands_build_dir, output_root_directory)
-
 def install_building_dependencies(externals_directory):
     externals_list = [
         'irods-externals-cmake3.11.4-0',
@@ -45,7 +36,8 @@ def install_building_dependencies(externals_directory):
         os_specific_directory = irods_python_ci_utilities.append_os_specific_directory(externals_directory)
         externals = []
         for irods_externals in externals_list:
-            externals.append(glob.glob(os.path.join(os_specific_directory, irods_externals + '*.{0}'.format(package_suffix)))[0])
+            local_package_path = os.path.join(os_specific_directory, irods_externals + '*.{0}'.format(package_suffix))
+            externals.append(glob.glob(local_package_path)[0])
         irods_python_ci_utilities.install_os_packages_from_files(externals)
 
     add_cmake_to_front_of_path()
@@ -100,27 +92,7 @@ def build_irods(debug_build):
     irods_python_ci_utilities.subprocess_get_output('fakeroot make package >> make.output', shell=True, cwd=irods_build_dir, check_rc=True)
     return irods_build_dir
 
-def install_irods_dev_and_runtime(irods_build_dir):
-    irods_python_ci_utilities.install_os_packages_from_files(
-        itertools.chain(
-            glob.glob(os.path.join(irods_build_dir, 'irods-dev*.{0}'.format(irods_python_ci_utilities.get_package_suffix()))),
-            glob.glob(os.path.join(irods_build_dir, 'irods-runtime*.{0}'.format(irods_python_ci_utilities.get_package_suffix())))))
-
-def build_icommands(icommands_git_repository, icommands_git_commitish, debug_build):
-    icommands_source_dir = irods_python_ci_utilities.git_clone(icommands_git_repository, icommands_git_commitish)
-    logging.getLogger(__name__).info('Using icommands source directory: %s', icommands_source_dir)
-    icommands_build_dir = tempfile.mkdtemp(prefix='icommands_build_dir')
-    logging.getLogger(__name__).info('Using icommands build directory: %s', icommands_build_dir)
-    if debug_build:
-        cmake_build_type = 'Debug'
-    else:
-        cmake_build_type = 'Release'
-    irods_python_ci_utilities.subprocess_get_output('cmake {0} -DCMAKE_BUILD_TYPE={1} > cmake.output'.format(icommands_source_dir, cmake_build_type), shell=True, cwd=icommands_build_dir, check_rc=True)
-    irods_python_ci_utilities.subprocess_get_output('make -j{0} > make.output'.format(str(multiprocessing.cpu_count())), shell=True, cwd=icommands_build_dir, check_rc=True)
-    irods_python_ci_utilities.subprocess_get_output('fakeroot make package >> make.output', shell=True, cwd=icommands_build_dir, check_rc=True)
-    return icommands_build_dir
-
-def copy_output_packages(irods_build_dir, icommands_build_dir, output_root_directory):
+def copy_output_packages(irods_build_dir, output_root_directory):
     # Packages
     irods_python_ci_utilities.gather_files_satisfying_predicate(
         irods_build_dir,
@@ -131,11 +103,6 @@ def copy_output_packages(irods_build_dir, icommands_build_dir, output_root_direc
         os.path.join(irods_build_dir, 'unit_tests'),
         irods_python_ci_utilities.append_os_specific_directory(output_root_directory),
         lambda s: os.path.basename(s).startswith('irods_'))
-    # iCommands
-    irods_python_ci_utilities.gather_files_satisfying_predicate(
-        icommands_build_dir,
-        irods_python_ci_utilities.append_os_specific_directory(output_root_directory),
-        lambda s: s.endswith(irods_python_ci_utilities.get_package_suffix()))
 
 def register_log_handler():
     logging.getLogger().setLevel(logging.INFO)
@@ -149,9 +116,7 @@ def register_log_handler():
 
 def main():
     parser = optparse.OptionParser()
-    parser.add_option('--debug_build', default='false')
-    parser.add_option('--icommands_git_commitish')
-    parser.add_option('--icommands_git_repository')
+    parser.add_option('--debug_build', action='store_true', default=False)
     parser.add_option('--externals_packages_directory')
     parser.add_option('--output_root_directory')
     parser.add_option('--just_install_dependencies', action='store_true', default=False)
@@ -161,25 +126,15 @@ def main():
     if options.verbose:
         register_log_handler()
 
+    install_building_dependencies(options.externals_packages_directory)
+
     if options.just_install_dependencies:
-        install_building_dependencies(options.externals_packages_directory)
         return
 
-    if options.debug_build not in ['false', 'true']:
-        print('--debug_build must be either "false" or "true"', file=sys.stderr)
-        sys.exit(1)
+    irods_build_dir = build_irods(options.debug_build)
 
-    if not options.icommands_git_repository:
-        print('--icommands_git_repository must be provided', file=sys.stderr)
-        sys.exit(1)
-
-    if not options.icommands_git_commitish:
-        print('--icommands_git_commitish must be provided', file=sys.stderr)
-        sys.exit(1)
-
-    build(
-        options.icommands_git_repository, options.icommands_git_commitish,
-        options.debug_build == 'true', options.output_root_directory, options.externals_packages_directory)
+    if options.output_root_directory:
+        copy_output_packages(irods_build_dir, options.output_root_directory)
 
 if __name__ == '__main__':
     main()
