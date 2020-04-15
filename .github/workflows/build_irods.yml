@@ -16,4 +16,4 @@ jobs:
     - name: install-ci-utilities
       run: git clone https://github.com/irods/irods_python_ci_utilities ci_utilities && pip install -e ci_utilities
     - name: build-hook
-      run: python irods_consortium_continuous_integration_build_hook.py --verbose
+      run: python irods_consortium_continuous_integration_build_hook.py --icommands_git_repository https://github.com/irods/irods_client_icommands --icommands_git_commitish master --verbose
