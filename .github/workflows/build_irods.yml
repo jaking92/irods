@@ -1,0 +1,17 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master, 4-2-stable ]
+  pull_request:
+    branches: [ master, 4-2-stable ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-16.04
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: python irods_consortium_continuous_integration_build_hook.py --verbose
