@@ -9,7 +9,18 @@ on:
 jobs:
   build:
 
-    runs-on: [ubuntu-16.04, ubuntu-18.04]
+    runs-on: [ubuntu-16.04]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: install-ci-utilities
+      run: git clone https://github.com/irods/irods_python_ci_utilities ci_utilities && pip install -e ci_utilities
+    - name: build-hook
+      run: python irods_consortium_continuous_integration_build_hook.py --icommands_git_repository https://github.com/irods/irods_client_icommands --icommands_git_commitish master --verbose
+
+  build2:
+
+    runs-on: [ubuntu-18.04]
 
     steps:
     - uses: actions/checkout@v2
