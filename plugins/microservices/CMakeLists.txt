@@ -1,2 +1,3 @@
 add_subdirectory(administration)
 add_subdirectory(msi_atomic_apply_metadata_operations)
+add_subdirectory(msi_get_agent_pid)
