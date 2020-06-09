@@ -335,7 +335,7 @@ _rsDataObjClose(
 
     if ( L1desc[l1descInx].oprStatus < 0 ) {
         // #3674 - elide any additional errors for catalog update if this is an intermediate replica
-        if((L1desc[l1descInx].replStatus & 0x0F) == INTERMEDIATE_REPLICA) {
+        if(INTERMEDIATE_REPLICA == L1desc[l1descInx].replStatus) {
             if( L1desc[l1descInx].oprType == REPLICATE_OPR ||
                 L1desc[l1descInx].oprType == REPLICATE_DEST ||
                 L1desc[l1descInx].oprType == REPLICATE_SRC ) {
@@ -513,10 +513,7 @@ _rsDataObjClose(
                           ADMIN_KW ) != NULL ) {
             addKeyVal( &regParam, ADMIN_KW, "" );
         }
-        if ( ( L1desc[l1descInx].replStatus & FILE_PATH_HAS_CHG ) != 0 ) {
-            /* path has changed */
-            addKeyVal( &regParam, FILE_PATH_KW, destDataObjInfo->filePath );
-        }
+        addKeyVal( &regParam, FILE_PATH_KW, destDataObjInfo->filePath );
         char* pdmo_kw = getValByKey( &dataObjCloseInp->condInput, IN_PDMO_KW );
         if ( pdmo_kw != NULL ) {
             addKeyVal( &regParam, IN_PDMO_KW, pdmo_kw );
@@ -532,10 +529,9 @@ _rsDataObjClose(
         modDataObjMetaInp.regParam = &regParam;
         status = rsModDataObjMeta( rsComm, &modDataObjMetaInp );
 
-        if (!(L1desc[l1descInx].replStatus & OPEN_EXISTING_COPY)) {
+        if (CREATE_TYPE == L1desc[l1descInx].openType) {
             /* update quota overrun */
-            updatequotaOverrun( destDataObjInfo->rescHier,
-                                destDataObjInfo->dataSize, ALL_QUOTA );
+            updatequotaOverrun( destDataObjInfo->rescHier, destDataObjInfo->dataSize, ALL_QUOTA );
         }
 
         clearKeyVal( &regParam );
@@ -583,7 +579,7 @@ _rsDataObjClose(
             addKeyVal( &regParam, CHKSUM_KW, checksum.c_str() );
         }
 
-        if ( L1desc[l1descInx].replStatus & OPEN_EXISTING_COPY ) {
+        if (OPEN_FOR_WRITE_TYPE == L1desc[l1descInx].openType) {
             addKeyVal( &regParam, ALL_REPL_STATUS_KW, "TRUE" );
             snprintf( tmpStr, MAX_NAME_LEN, "%d", ( int ) time( NULL ) );
             addKeyVal( &regParam, DATA_MODIFY_KW, tmpStr );
