@@ -53,6 +53,7 @@
 #include "irods_resource_backport.hpp"
 #include "irods_resource_redirect.hpp"
 #include "irods_hierarchy_parser.hpp"
+#include "irods_logger.hpp"
 #include "irods_stacktrace.hpp"
 #include "irods_server_properties.hpp"
 #include "irods_server_api_call.hpp"
@@ -61,8 +62,7 @@
 
 #include "boost/format.hpp"
 
-#include "irods_logger.hpp"
-
+namespace ix = irods::experimental;
 using logger = irods::experimental::log;
 
 namespace {
@@ -203,7 +203,7 @@ int specCollSubCreate(
     return l1descInx;
 }
 
-int create_data_obj(
+int create_new_replica(
     rsComm_t* rsComm,
     dataObjInp_t& dataObjInp)
 {
@@ -296,7 +296,7 @@ int create_data_obj(
     }
     L1desc[l1descInx].l3descInx = status;
     return l1descInx;
-} // create_data_obj
+} // create_new_replica
 
 int stageBundledData( rsComm_t * rsComm, dataObjInfo_t **subfileObjInfoHead ) {
     dataObjInfo_t *dataObjInfoHead = *subfileObjInfoHead;
@@ -489,16 +489,6 @@ int applyPreprocRuleForOpen(
     return status;
 } // applyPreprocRuleForOpen
 
-bool hier_has_replica(
-    const std::vector<irods::physical_object>& _replicas,
-    const std::string& _hier)
-{
-    return std::any_of(_replicas.begin(), _replicas.end(),
-        [&_hier](const irods::physical_object& _replica) {
-            return _replica.resc_hier() == _hier;
-        });
-} // hier_has_replica
-
 int change_replica_status_to_intermediate(
     rsComm_t* rsComm,
     dataObjInp_t& dataObjInp,
@@ -524,154 +514,6 @@ int change_replica_status_to_intermediate(
     }
     return status;
 } // change_replica_status_to_intermediate
-
-int _rsDataObjOpen(
-    rsComm_t* rsComm,
-    dataObjInp_t& dataObjInp,
-    dataObjInfo_t* dataObjInfoHead,
-    irods::file_object_ptr _obj)
-{
-    char* lockType = getValByKey(&dataObjInp.condInput, LOCK_TYPE_KW);
-    int lockFd = -1;
-    if (lockType) {
-        lockFd = irods::server_api_call(
-                     DATA_OBJ_LOCK_AN,
-                     rsComm, &dataObjInp,
-                     NULL, (void**)NULL, NULL);
-        if ( lockFd > 0 ) {
-            /* rm it so it won't be done again causing deadlock */
-            rmKeyVal(&dataObjInp.condInput, LOCK_TYPE_KW);
-        }
-        else {
-            rodsLog(LOG_ERROR,
-                    "%s: lock error for %s. lockType = %s",
-                    __FUNCTION__, dataObjInp.objPath, lockType );
-            return lockFd;
-        }
-    }
-
-    const auto unlock_data_obj{[&]() {
-        char fd_string[NAME_LEN]{};
-        snprintf( fd_string, sizeof( fd_string ), "%-d", lockFd );
-        addKeyVal( &dataObjInp.condInput, LOCK_FD_KW, fd_string );
-        irods::server_api_call(
-            DATA_OBJ_UNLOCK_AN,
-            rsComm,
-            &dataObjInp,
-            NULL,
-            ( void** ) NULL,
-            NULL );
-    }};
-
-    const int writeFlag = getWriteFlag(dataObjInp.openFlags);
-    if (dataObjInp.openFlags & O_CREAT && writeFlag > 0) {
-        const std::string resc_hier = getValByKey(&dataObjInp.condInput, RESC_HIER_STR_KW);
-        if (!hier_has_replica(_obj->replicas(), resc_hier)) {
-            int l1descInx = create_data_obj(rsComm, dataObjInp);
-            if ( lockFd >= 0 ) {
-                if ( l1descInx > 0 ) {
-                    L1desc[l1descInx].lockFd = lockFd;
-                }
-                else {
-                    unlock_data_obj();
-                }
-            }
-            return l1descInx;
-        }
-
-        if (!getValByKey(&dataObjInp.condInput, FORCE_FLAG_KW)) {
-            unlock_data_obj();
-            return OVERWRITE_WITHOUT_FORCE_FLAG;
-        }
-
-        dataObjInp.openFlags |= O_TRUNC | O_RDWR;
-        const std::string hier{getValByKey(&dataObjInp.condInput, RESC_HIER_STR_KW)};
-        const std::string root_resc = irods::hierarchy_parser{hier}.first_resc();
-        addKeyVal(&dataObjInp.condInput, DEST_RESC_NAME_KW, root_resc.c_str());
-        addKeyVal(&dataObjInp.condInput, OPEN_TYPE_KW, std::to_string(OPEN_FOR_WRITE_TYPE).c_str());
-    }
-
-    int status = sortObjInfoForOpen(&dataObjInfoHead, &dataObjInp.condInput, writeFlag);
-    if (status < 0) {
-        if (lockFd > 0) {
-            unlock_data_obj();
-        }
-        std::stringstream msg;
-        msg << __FUNCTION__;
-        msg << " - Unable to select a data obj info matching the resource hierarchy from the keywords.";
-        irods::log(ERROR(status, msg.str()));
-        return status;
-    }
-
-    status = applyPreprocRuleForOpen( rsComm, &dataObjInp, &dataObjInfoHead );
-    if (status < 0) {
-        if (lockFd > 0) {
-            unlock_data_obj();
-        }
-        return status;
-    }
-
-    if ( getStructFileType( dataObjInfoHead->specColl ) < 0 && writeFlag > 0 ) {
-        char* rescName{};
-        if ((rescName = getValByKey(&dataObjInp.condInput, DEST_RESC_NAME_KW)) ||
-            (rescName = getValByKey(&dataObjInp.condInput, BACKUP_RESC_NAME_KW)) ||
-            (rescName = getValByKey(&dataObjInp.condInput, DEF_RESC_NAME_KW))) {
-            status = requeDataObjInfoByResc(&dataObjInfoHead, rescName, writeFlag, 1);
-        }
-
-        if ( status < 0 ) {
-            if ( lockFd > 0 ) {
-                unlock_data_obj();
-            }
-            freeAllDataObjInfo( dataObjInfoHead );
-            return status;
-        }
-    }
-
-    // Stage bundled data to cache directory, if necessary
-    std::string resc_class{};
-    irods::error prop_err = irods::get_resource_property<std::string>(
-                                dataObjInfoHead->rescId, irods::RESOURCE_CLASS, resc_class);
-    if (prop_err.ok() && resc_class == irods::RESOURCE_CLASS_BUNDLE) {
-        status = stageBundledData(rsComm, &dataObjInfoHead);
-        if ( status < 0 ) {
-            rodsLog( LOG_ERROR,
-                     "%s: stageBundledData of %s failed stat=%d",
-                     __FUNCTION__, dataObjInfoHead->objPath, status );
-            freeAllDataObjInfo( dataObjInfoHead );
-            if ( lockFd >= 0 ) {
-                unlock_data_obj();
-            }
-            return status;
-        }
-    }
-
-    dataObjInfo_t* tmpDataObjInfo = dataObjInfoHead;
-    while (tmpDataObjInfo) {
-        dataObjInfo_t* nextDataObjInfo = tmpDataObjInfo->next;
-        tmpDataObjInfo->next = NULL;
-        int l1descInx = open_with_obj_info(rsComm, dataObjInp, tmpDataObjInfo);
-        if (l1descInx >= 0) {
-            if (writeFlag > 0) {
-                L1desc[l1descInx].openType = OPEN_FOR_WRITE_TYPE;
-                status = change_replica_status_to_intermediate(rsComm, dataObjInp, tmpDataObjInfo);
-                if (status < 0) {
-                    return status;
-                }
-            }
-            else {
-                L1desc[l1descInx].openType = OPEN_FOR_READ_TYPE;
-            }
-            if ( lockFd >= 0 ) {
-                L1desc[l1descInx].lockFd = lockFd;
-            }
-            return l1descInx;
-        }
-        status = l1descInx;
-        tmpDataObjInfo = nextDataObjInfo;
-    }
-    return status;
-} // _rsDataObjOpen
 
 } // anonymous namespace
 
@@ -709,28 +551,182 @@ int rsDataObjOpen(
         return l1descInx;
     }
 
-    dataObjInfo_t* dataObjInfoHead{};
-    if (!getValByKey(&dataObjInp->condInput, RESC_HIER_STR_KW)) {
-        try {
+    auto cond_input = ix::make_key_value_proxy(dataObjInp->condInput);
+
+    try {
+        // Get replica information for data object, resolving hierarchy if necessary
+        dataObjInfo_t* dataObjInfoHead{};
+        irods::file_object_ptr file_obj(new irods::file_object());
+        if (!cond_input.contains(RESC_HIER_STR_KW)) {
+            std::string hier{};
             const auto operation = (dataObjInp->openFlags & O_CREAT) ?
                 irods::CREATE_OPERATION : irods::OPEN_OPERATION;
-            auto [file_obj, hier] = irods::resolve_resource_hierarchy(operation, rsComm, *dataObjInp, &dataObjInfoHead);
-            addKeyVal(&dataObjInp->condInput, RESC_HIER_STR_KW, hier.c_str());
-            return _rsDataObjOpen(rsComm, *dataObjInp, dataObjInfoHead, file_obj);
+            std::tie(file_obj, hier) = irods::resolve_resource_hierarchy(operation, rsComm, *dataObjInp, &dataObjInfoHead);
+            cond_input[RESC_HIER_STR_KW] = hier;
         }
-        catch (const irods::exception& e) {
-            rodsLog(LOG_ERROR, "[%s] - resolve_resource_hierarchy failed with [%d] when opening [%s]",
-                    __FUNCTION__, e.code(), dataObjInp->objPath);
-            return e.code();
+        else {
+            irods::file_object_ptr obj(new irods::file_object());
+            irods::error fac_err = irods::file_object_factory(rsComm, dataObjInp, obj, &dataObjInfoHead);
+            if (!fac_err.ok()) {
+                irods::log(fac_err);
+            }
+            file_obj.swap(obj);
         }
+
+        int lockFd = -1;
+        if (cond_input.contains(LOCK_TYPE_KW) && cond_input.at(LOCK_TYPE_KW).value().data()) {
+            rodsLog(LOG_NOTICE, "[%s:%d] - locking file with type [%s]",
+                __FUNCTION__, __LINE__, getValByKey(&dataObjInp->condInput, LOCK_TYPE_KW));
+            lockFd = irods::server_api_call(
+                         DATA_OBJ_LOCK_AN,
+                         rsComm, dataObjInp,
+                         NULL, (void**)NULL, NULL);
+
+            if (lockFd <= 0) {
+                rodsLog(LOG_ERROR, "%s: lock error for %s. lockType = %s, lockFd: %d",
+                        __FUNCTION__, dataObjInp->objPath, cond_input.at(LOCK_TYPE_KW).value().data(), lockFd );
+                return lockFd;
+            }
+
+            /* rm it so it won't be done again causing deadlock */
+            cond_input.erase(LOCK_TYPE_KW);
+        }
+
+        const auto unlock_data_obj{[&]() {
+            char fd_string[NAME_LEN]{};
+            snprintf( fd_string, sizeof( fd_string ), "%-d", lockFd );
+            cond_input[LOCK_FD_KW] = fd_string;
+            irods::server_api_call(
+                DATA_OBJ_UNLOCK_AN,
+                rsComm,
+                dataObjInp,
+                NULL,
+                ( void** ) NULL,
+                NULL );
+        }};
+
+        // Determine if this is a replica creation and do so
+        const int writeFlag = getWriteFlag(dataObjInp->openFlags);
+        if (dataObjInp->openFlags & O_CREAT && writeFlag > 0) {
+            const auto hier_has_replica{
+                [&cond_input, &replicas = file_obj->replicas()]()
+                {
+                    return std::any_of(replicas.begin(), replicas.end(),
+                        [&](const irods::physical_object& replica) {
+                            return replica.resc_hier() == cond_input.at(RESC_HIER_STR_KW);
+                        });
+                }()};
+
+            if (!hier_has_replica) {
+                const int l1descInx = create_new_replica(rsComm, *dataObjInp);
+                if ( lockFd >= 0 ) {
+                    if ( l1descInx > 0 ) {
+                        L1desc[l1descInx].lockFd = lockFd;
+                    }
+                    else {
+                        unlock_data_obj();
+                    }
+                }
+                return l1descInx;
+            }
+
+            // This is an overwrite - swizzle some flags
+            dataObjInp->openFlags |= O_TRUNC | O_RDWR;
+            const auto hier = cond_input.at(RESC_HIER_STR_KW).value();
+            cond_input[DEST_RESC_NAME_KW] = irods::hierarchy_parser{hier.data()}.first_resc();
+            cond_input[OPEN_TYPE_KW] = std::to_string(OPEN_FOR_WRITE_TYPE);
+        }
+
+        // sort replica list based on some set of criteria
+        int status = sortObjInfoForOpen(&dataObjInfoHead, cond_input.get(), writeFlag);
+        if (status < 0) {
+            std::stringstream msg;
+            msg << __FUNCTION__;
+            msg << " - Unable to select a data obj info matching the resource hierarchy from the keywords.";
+            irods::log(ERROR(status, msg.str()));
+            if (lockFd > 0) {
+                unlock_data_obj();
+            }
+            return status;
+        }
+
+        // acPreProcForOpen
+        status = applyPreprocRuleForOpen( rsComm, dataObjInp, &dataObjInfoHead );
+        if (status < 0) {
+            if (lockFd > 0) {
+                unlock_data_obj();
+            }
+            return status;
+        }
+
+        // reshuffling dataObjInfo based on provided resource keywords (shouldn't this be done in voting?)
+        if ( getStructFileType( dataObjInfoHead->specColl ) < 0 && writeFlag > 0 ) {
+            const std::vector<const char*> kw{DEST_RESC_NAME_KW, BACKUP_RESC_NAME_KW, DEF_RESC_NAME_KW};
+
+            const auto resc_name = std::find_first_of(
+                std::begin(cond_input), std::end(cond_input),
+                std::begin(kw),         std::end(kw));
+
+            if (std::end(cond_input) != resc_name) {
+                status = requeDataObjInfoByResc(&dataObjInfoHead, (*resc_name).value().data(), writeFlag, 1);
+            }
+
+            if ( status < 0 ) {
+                if (lockFd > 0) {
+                    unlock_data_obj();
+                }
+                freeAllDataObjInfo( dataObjInfoHead );
+                return status;
+            }
+        }
+
+        // Stage bundled data to cache directory, if necessary
+        std::string resc_class{};
+        irods::error prop_err = irods::get_resource_property<std::string>(
+                                    dataObjInfoHead->rescId, irods::RESOURCE_CLASS, resc_class);
+        if (prop_err.ok() && resc_class == irods::RESOURCE_CLASS_BUNDLE) {
+            status = stageBundledData(rsComm, &dataObjInfoHead);
+            if ( status < 0 ) {
+                rodsLog( LOG_ERROR,
+                         "%s: stageBundledData of %s failed stat=%d",
+                         __FUNCTION__, dataObjInfoHead->objPath, status );
+                if (lockFd > 0) {
+                    unlock_data_obj();
+                }
+                freeAllDataObjInfo( dataObjInfoHead );
+                return status;
+            }
+        }
+
+        // open replica
+        dataObjInfo_t* tmpDataObjInfo = dataObjInfoHead;
+        tmpDataObjInfo->next = NULL;
+        int l1descInx = open_with_obj_info(rsComm, *dataObjInp, tmpDataObjInfo);
+        if (l1descInx < 0) {
+            if (lockFd > 0) {
+                unlock_data_obj();
+            }
+            return l1descInx;
+        }
+
+        // lock data object
+        //irods::experimental::data_object::lock(rsComm, dataObjInp, l1descInx);
+        if (writeFlag > 0) {
+            status = change_replica_status_to_intermediate(rsComm, *dataObjInp, tmpDataObjInfo);
+            if (status < 0) {
+                if (lockFd > 0) {
+                    unlock_data_obj();
+                }
+                THROW(status, "failed to change replica status");
+            }
+        }
+        L1desc[l1descInx].openType = writeFlag ? OPEN_FOR_WRITE_TYPE : OPEN_FOR_READ_TYPE;
+        return l1descInx;
     }
-    else {
-        irods::file_object_ptr file_obj(new irods::file_object());
-        irods::error fac_err = irods::file_object_factory(rsComm, dataObjInp, file_obj, &dataObjInfoHead);
-        if (!fac_err.ok()) {
-            irods::log(fac_err);
-        }
-        return _rsDataObjOpen(rsComm, *dataObjInp, dataObjInfoHead, file_obj);
+    catch (const irods::exception& e) {
+        rodsLog(LOG_ERROR, "[%s] - resolve_resource_hierarchy failed with [%d] when opening [%s]",
+                __FUNCTION__, e.code(), dataObjInp->objPath);
+        return e.code();
     }
-}
+} // rsDataObjOpen
 
