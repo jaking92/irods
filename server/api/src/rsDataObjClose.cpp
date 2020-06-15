@@ -53,225 +53,39 @@
 
 
 namespace{
-    int trimDataObjInfo(
-        rsComm_t*      rsComm,
-        dataObjInfo_t* dataObjInfo ) {
-        // =-=-=-=-=-=-=-
-        // add the hier to a parser to get the leaf
-        //std::string cache_resc = irods::hierarchy_parser{dataObjInfo->rescHier}.last_resc();
 
-        dataObjInp_t dataObjInp{};
-        rstrcpy( dataObjInp.objPath,  dataObjInfo->objPath, MAX_NAME_LEN );
-        char tmpStr[NAME_LEN]{};
-        snprintf( tmpStr, NAME_LEN, "1" );
-        addKeyVal( &dataObjInp.condInput, COPIES_KW, tmpStr );
+int trimDataObjInfo(
+    rsComm_t*      rsComm,
+    dataObjInfo_t* dataObjInfo ) {
+    // =-=-=-=-=-=-=-
+    // add the hier to a parser to get the leaf
+    //std::string cache_resc = irods::hierarchy_parser{dataObjInfo->rescHier}.last_resc();
 
-        // =-=-=-=-=-=-=-
-        // specify the cache repl num to trim just the cache
-        addKeyVal( &dataObjInp.condInput, REPL_NUM_KW, std::to_string(dataObjInfo->replNum).c_str() );
-        addKeyVal( &dataObjInp.condInput, RESC_HIER_STR_KW, dataObjInfo->rescHier );
+    dataObjInp_t dataObjInp{};
+    rstrcpy( dataObjInp.objPath,  dataObjInfo->objPath, MAX_NAME_LEN );
+    char tmpStr[NAME_LEN]{};
+    snprintf( tmpStr, NAME_LEN, "1" );
+    addKeyVal( &dataObjInp.condInput, COPIES_KW, tmpStr );
 
-        int status = rsDataObjTrim( rsComm, &dataObjInp );
-        clearKeyVal( &dataObjInp.condInput );
-        if ( status < 0 ) {
-            rodsLogError( LOG_ERROR, status,
-                          "%s: error trimming obj info for [%s]", __FUNCTION__, dataObjInfo->objPath );
-        }
-        return status;
+    // =-=-=-=-=-=-=-
+    // specify the cache repl num to trim just the cache
+    addKeyVal( &dataObjInp.condInput, REPL_NUM_KW, std::to_string(dataObjInfo->replNum).c_str() );
+    addKeyVal( &dataObjInp.condInput, RESC_HIER_STR_KW, dataObjInfo->rescHier );
+
+    int status = rsDataObjTrim( rsComm, &dataObjInp );
+    clearKeyVal( &dataObjInp.condInput );
+    if ( status < 0 ) {
+        rodsLogError( LOG_ERROR, status,
+                      "%s: error trimming obj info for [%s]", __FUNCTION__, dataObjInfo->objPath );
     }
-}
-
-int
-rsDataObjClose( rsComm_t *rsComm, openedDataObjInp_t *dataObjCloseInp ) {
-    return irsDataObjClose( rsComm, dataObjCloseInp, NULL );
-}
-
-int
-irsDataObjClose(
-    rsComm_t *rsComm,
-    openedDataObjInp_t *dataObjCloseInp,
-    dataObjInfo_t **outDataObjInfo ) {
-    int status;
-    ruleExecInfo_t rei;
-    int l1descInx = dataObjCloseInp->l1descInx;
-    if ( l1descInx <= 2 || l1descInx >= NUM_L1_DESC ) {
-        rodsLog( LOG_NOTICE,
-                 "rsDataObjClose: l1descInx %d out of range",
-                 l1descInx );
-        return SYS_FILE_DESC_OUT_OF_RANGE;
-    }
-
-    // ensure that l1 descriptor is in use before closing
-    if ( L1desc[l1descInx].inuseFlag != FD_INUSE ) {
-        rodsLog(
-            LOG_ERROR,
-            "rsDataObjClose: l1descInx %d out of range",
-            l1descInx );
-        return BAD_INPUT_DESC_INDEX;
-    }
-
-    // sanity check for in-flight l1 descriptor
-    if( !L1desc[l1descInx].dataObjInp ) {
-        rodsLog(
-            LOG_ERROR,
-            "rsDataObjClose: invalid dataObjInp for index %d",
-            l1descInx );
-        return SYS_INVALID_INPUT_PARAM;
-    }
-
-    if ( outDataObjInfo != NULL ) {
-        *outDataObjInfo = NULL;
-    }
-    if ( L1desc[l1descInx].remoteZoneHost != NULL ) {
-        /* cross zone operation */
-        dataObjCloseInp->l1descInx = L1desc[l1descInx].remoteL1descInx;
-        /* XXXXX outDataObjInfo will not be returned in this call.
-         * The only call that requires outDataObjInfo to be returned is
-         * _rsDataObjReplS which does a remote repl early for cross zone */
-        status = rcDataObjClose( L1desc[l1descInx].remoteZoneHost->conn, dataObjCloseInp );
-        dataObjCloseInp->l1descInx = l1descInx;
-    }
-    else {
-        status = _rsDataObjClose( rsComm, dataObjCloseInp );
-        // =-=-=-=-=-=-=-
-        // JMC - backport 4640
-        if ( L1desc[l1descInx].lockFd > 0 ) {
-            char fd_string[NAME_LEN];
-            snprintf( fd_string, sizeof( fd_string ), "%-d", L1desc[l1descInx].lockFd );
-            addKeyVal( &L1desc[l1descInx].dataObjInp->condInput, LOCK_FD_KW, fd_string );
-            irods::server_api_call(
-                DATA_OBJ_UNLOCK_AN,
-                rsComm,
-                L1desc[l1descInx].dataObjInp,
-                NULL,
-                ( void** ) NULL,
-                NULL );
-
-            L1desc[l1descInx].lockFd = -1;
-        }
-        // =-=-=-=-=-=-=-
-
-        if ( status >= 0 && L1desc[l1descInx].oprStatus >= 0 ) {
-            /* note : this may overlap with acPostProcForPut or
-             * acPostProcForCopy */
-            if ( L1desc[l1descInx].openType == CREATE_TYPE ) {
-                initReiWithDataObjInp( &rei, rsComm,
-                                       L1desc[l1descInx].dataObjInp );
-                rei.doi = L1desc[l1descInx].dataObjInfo;
-                rei.status = status;
-
-                // make resource properties available as rule session variables
-                irods::get_resc_properties_as_kvp(rei.doi->rescHier, rei.condInputData);
-
-                rei.status = applyRule( "acPostProcForCreate", NULL, &rei,
-                                        NO_SAVE_REI );
-                /* doi might have changed */
-                L1desc[l1descInx].dataObjInfo = rei.doi;
-                clearKeyVal(rei.condInputData);
-                free(rei.condInputData);
-            }
-            else if ( L1desc[l1descInx].openType == OPEN_FOR_READ_TYPE ||
-                      L1desc[l1descInx].openType == OPEN_FOR_WRITE_TYPE ) {
-                initReiWithDataObjInp( &rei, rsComm,
-                                       L1desc[l1descInx].dataObjInp );
-                rei.doi = L1desc[l1descInx].dataObjInfo;
-                rei.status = status;
-
-                // make resource properties available as rule session variables
-                irods::get_resc_properties_as_kvp(rei.doi->rescHier, rei.condInputData);
-
-                rei.status = applyRule( "acPostProcForOpen", NULL, &rei,
-                                        NO_SAVE_REI );
-                /* doi might have changed */
-                L1desc[l1descInx].dataObjInfo = rei.doi;
-                // =-=-=-=-=-=-=-
-                // JMC - bacport 4623
-                clearKeyVal(rei.condInputData);
-                free(rei.condInputData);
-            }
-            else if ( L1desc[l1descInx].oprType == REPLICATE_DEST ) {
-                initReiWithDataObjInp( &rei, rsComm,
-                                       L1desc[l1descInx].dataObjInp );
-                rei.doi = L1desc[l1descInx].dataObjInfo;
-                rei.status = status;
-                rei.status = applyRule( "acPostProcForRepl", NULL, &rei,
-                                        NO_SAVE_REI );
-                /* doi might have changed */
-                L1desc[l1descInx].dataObjInfo = rei.doi;
-                // =-=-=-=-=-=-=-
-                clearKeyVal(rei.condInputData);
-                free(rei.condInputData);
-           }
-
-            if ( L1desc[l1descInx].oprType == COPY_DEST ) {
-                /* have to put copy first because the next test could
-                 * trigger put rule for copy operation */
-                initReiWithDataObjInp( &rei, rsComm,
-                                       L1desc[l1descInx].dataObjInp );
-                rei.doi = L1desc[l1descInx].dataObjInfo;
-                rei.status = status;
-
-                // make resource properties available as rule session variables
-                irods::get_resc_properties_as_kvp(rei.doi->rescHier, rei.condInputData);
-
-                rei.status = applyRule( "acPostProcForCopy", NULL, &rei,
-                                        NO_SAVE_REI );
-                /* doi might have changed */
-                L1desc[l1descInx].dataObjInfo = rei.doi;
-                clearKeyVal(rei.condInputData);
-                free(rei.condInputData);
-            }
-            else if ( L1desc[l1descInx].oprType == PUT_OPR ||
-                      L1desc[l1descInx].openType == CREATE_TYPE ||
-                      ( L1desc[l1descInx].openType == OPEN_FOR_WRITE_TYPE &&
-                        ( L1desc[l1descInx].bytesWritten > 0 ||
-                          dataObjCloseInp->bytesWritten > 0 ) ) ) {
-                initReiWithDataObjInp( &rei, rsComm,
-                                       L1desc[l1descInx].dataObjInp );
-                rei.doi = L1desc[l1descInx].dataObjInfo;
-                rei.status = status;
-
-                // make resource properties available as rule session variables
-                irods::get_resc_properties_as_kvp(rei.doi->rescHier, rei.condInputData);
-
-                rei.status = applyRule( "acPostProcForPut", NULL, &rei,
-                                        NO_SAVE_REI );
-                /* doi might have changed */
-                L1desc[l1descInx].dataObjInfo = rei.doi;
-                clearKeyVal(rei.condInputData);
-                free(rei.condInputData);
-            }
-            else if ( L1desc[l1descInx].dataObjInp != NULL &&
-                      L1desc[l1descInx].dataObjInp->oprType == PHYMV_OPR ) {
-                initReiWithDataObjInp( &rei, rsComm,
-                                       L1desc[l1descInx].dataObjInp );
-                rei.doi = L1desc[l1descInx].dataObjInfo;
-                rei.status = status;
-                rei.status = applyRule( "acPostProcForPhymv", NULL, &rei,
-                                        NO_SAVE_REI );
-                /* doi might have changed */
-                L1desc[l1descInx].dataObjInfo = rei.doi;
-                clearKeyVal(rei.condInputData);
-                free(rei.condInputData);
-
-            }
-        }
-    }
-
-    if ( outDataObjInfo ) {
-        *outDataObjInfo = L1desc[l1descInx].dataObjInfo;
-        L1desc[l1descInx].dataObjInfo = NULL;
-    }
-
-    freeL1desc( l1descInx );
-
     return status;
-}
+} // trimDataObjInfo
 
 int _modDataObjSize(
     rsComm_t*      _comm,
     int            _l1descInx,
-    dataObjInfo_t* _info ) {
+    dataObjInfo_t* _info)
+{
 
     keyValPair_t regParam;
     modDataObjMeta_t modDataObjMetaInp;
@@ -303,12 +117,229 @@ int _modDataObjSize(
                  __FUNCTION__, _info->dataSize, status );
     }
     return status;
-}
+} // _modDataObjSize
 
-int
-_rsDataObjClose(
+int procChksumForClose(
     rsComm_t *rsComm,
-    openedDataObjInp_t *dataObjCloseInp ) {
+    int l1descInx,
+    char **chksumStr)
+{
+    int status = 0;
+    dataObjInfo_t *dataObjInfo = L1desc[l1descInx].dataObjInfo;
+    int oprType = L1desc[l1descInx].oprType;
+    int srcL1descInx = 0;
+    dataObjInfo_t *srcDataObjInfo;
+
+    *chksumStr = NULL;
+    if ( oprType == REPLICATE_DEST || oprType == PHYMV_DEST ) {
+        srcL1descInx = L1desc[l1descInx].srcL1descInx;
+        if ( srcL1descInx <= 2 ) {
+            rodsLog( LOG_NOTICE,
+                     "procChksumForClose: srcL1descInx %d out of range",
+                     srcL1descInx );
+            return SYS_FILE_DESC_OUT_OF_RANGE;
+        }
+
+        srcDataObjInfo = L1desc[srcL1descInx].dataObjInfo;
+        if ( strlen( srcDataObjInfo->chksum ) > 0 ) {
+            addKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW, srcDataObjInfo->chksum );
+        }
+
+        if ( strlen( srcDataObjInfo->chksum ) > 0 &&
+                srcDataObjInfo->replStatus > 0 ) {
+            /* the source has chksum. Must verify chksum */
+            status = _dataObjChksum( rsComm, dataObjInfo, chksumStr );
+            if ( status < 0 ) {
+                dataObjInfo->chksum[0] = '\0';
+                if ( status == DIRECT_ARCHIVE_ACCESS ) {
+                    *chksumStr = strdup( srcDataObjInfo->chksum );
+                    rstrcpy( dataObjInfo->chksum, *chksumStr, NAME_LEN );
+                    return 0;
+                }
+                else {
+                    rodsLog( LOG_NOTICE,
+                             "procChksumForClose: _dataObjChksum error for %s, status = %d",
+                             dataObjInfo->objPath, status );
+                    return status;
+                }
+            }
+            else if ( *chksumStr == NULL ) {
+                rodsLog( LOG_ERROR, "chksumStr is NULL" );
+                return SYS_INTERNAL_NULL_INPUT_ERR;
+            }
+            else {
+                rstrcpy( dataObjInfo->chksum, *chksumStr, NAME_LEN );
+                if ( strcmp( srcDataObjInfo->chksum, *chksumStr ) != 0 ) {
+                    rodsLog( LOG_NOTICE,
+                             "procChksumForClose: chksum mismatch for %s src [%s] new [%s]",
+                             dataObjInfo->objPath, srcDataObjInfo->chksum, *chksumStr );
+                    free( *chksumStr );
+                    *chksumStr = NULL;
+                    return USER_CHKSUM_MISMATCH;
+                }
+                else {
+                    return 0;
+                }
+            }
+        }
+    }
+
+    /* overwriting an old copy. need to verify the chksum again */
+    if ( strlen( L1desc[l1descInx].dataObjInfo->chksum ) > 0 && !L1desc[l1descInx].chksumFlag ) {
+        L1desc[l1descInx].chksumFlag = VERIFY_CHKSUM;
+    }
+
+    if ( L1desc[l1descInx].chksumFlag == 0 ) {
+        return 0;
+    }
+    else if ( L1desc[l1descInx].chksumFlag == VERIFY_CHKSUM ) {
+        if ( strlen( L1desc[l1descInx].chksum ) > 0 ) {
+            if ( strlen( L1desc[l1descInx].chksum ) > 0 ) {
+                addKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW, L1desc[l1descInx].chksum );
+            }
+
+            status = _dataObjChksum( rsComm, dataObjInfo, chksumStr );
+
+            rmKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW );
+            if ( status < 0 ) {
+                return status;
+            }
+            /* from a put type operation */
+            /* verify against the input value. */
+            if ( strcmp( L1desc[l1descInx].chksum, *chksumStr ) != 0 ) {
+                rodsLog( LOG_NOTICE,
+                         "procChksumForClose: mismatch chksum for %s.inp=%s,compute %s",
+                         dataObjInfo->objPath,
+                         L1desc[l1descInx].chksum, *chksumStr );
+                free( *chksumStr );
+                *chksumStr = NULL;
+                return USER_CHKSUM_MISMATCH;
+            }
+
+            if ( strcmp( dataObjInfo->chksum, *chksumStr ) == 0 ) {
+                /* the same as in rcat */
+                free( *chksumStr );
+                *chksumStr = NULL;
+            }
+        }
+        else if ( oprType == REPLICATE_DEST ) {
+            if ( strlen( dataObjInfo->chksum ) > 0 ) {
+                addKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW, dataObjInfo->chksum );
+
+            }
+            status = _dataObjChksum( rsComm, dataObjInfo, chksumStr );
+            if ( status < 0 ) {
+                return status;
+            }
+            if ( *chksumStr == NULL ) {
+                rodsLog( LOG_ERROR, "chksumStr is NULL" );
+                return SYS_INTERNAL_NULL_INPUT_ERR;
+            }
+
+            if ( strlen( dataObjInfo->chksum ) > 0 ) {
+                rmKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW );
+
+                /* for replication, the chksum in dataObjInfo was duplicated */
+                if ( strcmp( dataObjInfo->chksum, *chksumStr ) != 0 ) {
+                    rodsLog( LOG_NOTICE,
+                             "procChksumForClose:mismach chksum for %s.Rcat=%s,comp %s",
+                             dataObjInfo->objPath, dataObjInfo->chksum, *chksumStr );
+                    status = USER_CHKSUM_MISMATCH;
+                }
+                else {
+                    /* not need to register because reg repl will do it */
+                    free( *chksumStr );
+                    *chksumStr = NULL;
+                    status = 0;
+                }
+            }
+            return status;
+        }
+        else if ( oprType == COPY_DEST ) {
+            /* created through copy */
+            srcL1descInx = L1desc[l1descInx].srcL1descInx;
+            if ( srcL1descInx <= 2 ) {
+                /* not a valid srcL1descInx */
+                rodsLog( LOG_DEBUG,
+                         "procChksumForClose: invalid srcL1descInx %d for copy",
+                         srcL1descInx );
+                /* just register it for now */
+                return 0;
+            }
+            srcDataObjInfo = L1desc[srcL1descInx].dataObjInfo;
+            if ( strlen( srcDataObjInfo->chksum ) > 0 ) {
+                addKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW, srcDataObjInfo->chksum );
+
+            }
+            status = _dataObjChksum( rsComm, dataObjInfo, chksumStr );
+            if ( status < 0 ) {
+                return status;
+            }
+            if ( *chksumStr == NULL ) {
+                rodsLog( LOG_ERROR, "chkSumStr is null." );
+                return SYS_INTERNAL_NULL_INPUT_ERR;
+            }
+            if ( strlen( srcDataObjInfo->chksum ) > 0 ) {
+                rmKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW );
+                if ( strcmp( srcDataObjInfo->chksum, *chksumStr ) != 0 ) {
+                    rodsLog( LOG_NOTICE,
+                             "procChksumForClose:mismach chksum for %s.Rcat=%s,comp %s",
+                             dataObjInfo->objPath, srcDataObjInfo->chksum, *chksumStr );
+                    free( *chksumStr );
+                    *chksumStr = NULL;
+                    return USER_CHKSUM_MISMATCH;
+                }
+            }
+            /* just register it */
+            return 0;
+        }
+    }
+    else {	/* REG_CHKSUM */
+        if ( strlen( L1desc[l1descInx].chksum ) > 0 ) {
+            addKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW, L1desc[l1descInx].chksum );
+        }
+
+        status = _dataObjChksum( rsComm, dataObjInfo, chksumStr );
+        if ( status < 0 ) {
+            return status;
+        }
+
+        if ( strlen( L1desc[l1descInx].chksum ) > 0 ) {
+            rmKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW );
+            /* from a put type operation */
+
+            if ( strcmp( dataObjInfo->chksum, L1desc[l1descInx].chksum ) == 0 ) {
+                /* same as in icat */
+                free( *chksumStr );
+                *chksumStr = NULL;
+            }
+            return 0;
+        }
+        else if ( oprType == COPY_DEST ) {
+            /* created through copy */
+            srcL1descInx = L1desc[l1descInx].srcL1descInx;
+            if ( srcL1descInx <= 2 ) {
+                /* not a valid srcL1descInx */
+                rodsLog( LOG_DEBUG,
+                         "procChksumForClose: invalid srcL1descInx %d for copy",
+                         srcL1descInx );
+                return 0;
+            }
+            srcDataObjInfo = L1desc[srcL1descInx].dataObjInfo;
+            if ( strlen( srcDataObjInfo->chksum ) == 0 ) {
+                free( *chksumStr );
+                *chksumStr = NULL;
+            }
+        }
+        return 0;
+    }
+    return status;
+} // procChksumForClose
+
+int _rsDataObjClose(
+    rsComm_t *rsComm,
+    openedDataObjInp_t *dataObjCloseInp)
+{
     int status = 0;
     char tmpStr[MAX_NAME_LEN];
     modDataObjMeta_t modDataObjMetaInp;
@@ -335,13 +366,12 @@ _rsDataObjClose(
 
     if ( L1desc[l1descInx].oprStatus < 0 ) {
         // #3674 - elide any additional errors for catalog update if this is an intermediate replica
-        if(INTERMEDIATE_REPLICA == L1desc[l1descInx].replStatus) {
-            if( L1desc[l1descInx].oprType == REPLICATE_OPR ||
-                L1desc[l1descInx].oprType == REPLICATE_DEST ||
-                L1desc[l1descInx].oprType == REPLICATE_SRC ) {
-                // Make change here if we want to stop replication
-                return L1desc[l1descInx].oprStatus;
-            }
+        // TODO: Why?
+        if( L1desc[l1descInx].oprType == REPLICATE_OPR ||
+            L1desc[l1descInx].oprType == REPLICATE_DEST ||
+            L1desc[l1descInx].oprType == REPLICATE_SRC ) {
+            // Make change here if we want to stop replication
+            return L1desc[l1descInx].oprStatus;
         }
 
         const rodsLong_t vault_size = getSizeInVault(
@@ -633,7 +663,9 @@ _rsDataObjClose(
         L1desc[l1descInx].dataObjInfo->dataSize = newSize;
 
     return status;
-}
+} // _rsDataObjClose
+
+} // anonymous namespace
 
 int
 l3Close( rsComm_t *rsComm, int l1descInx ) {
@@ -714,222 +746,174 @@ l3Stat( rsComm_t *rsComm, dataObjInfo_t *dataObjInfo, rodsStat_t **myStat ) {
     return status;
 }
 
-/* procChksumForClose - handle checksum issues on close. Returns a non-null
- * chksumStr if it needs to be registered.
- */
-int
-procChksumForClose(
+
+int rsDataObjClose(
     rsComm_t *rsComm,
-    int l1descInx,
-    char **chksumStr ) {
-    int status = 0;
-    dataObjInfo_t *dataObjInfo = L1desc[l1descInx].dataObjInfo;
-    int oprType = L1desc[l1descInx].oprType;
-    int srcL1descInx = 0;
-    dataObjInfo_t *srcDataObjInfo;
+    openedDataObjInp_t *dataObjCloseInp)
+{
+    int status;
+    ruleExecInfo_t rei;
+    int l1descInx = dataObjCloseInp->l1descInx;
+    if ( l1descInx <= 2 || l1descInx >= NUM_L1_DESC ) {
+        rodsLog( LOG_NOTICE,
+                 "rsDataObjClose: l1descInx %d out of range",
+                 l1descInx );
+        return SYS_FILE_DESC_OUT_OF_RANGE;
+    }
 
-    *chksumStr = NULL;
-    if ( oprType == REPLICATE_DEST || oprType == PHYMV_DEST ) {
-        srcL1descInx = L1desc[l1descInx].srcL1descInx;
-        if ( srcL1descInx <= 2 ) {
-            rodsLog( LOG_NOTICE,
-                     "procChksumForClose: srcL1descInx %d out of range",
-                     srcL1descInx );
-            return SYS_FILE_DESC_OUT_OF_RANGE;
+    // ensure that l1 descriptor is in use before closing
+    if ( L1desc[l1descInx].inuseFlag != FD_INUSE ) {
+        rodsLog(
+            LOG_ERROR,
+            "rsDataObjClose: l1descInx %d out of range",
+            l1descInx );
+        return BAD_INPUT_DESC_INDEX;
+    }
+
+    // sanity check for in-flight l1 descriptor
+    if( !L1desc[l1descInx].dataObjInp ) {
+        rodsLog(
+            LOG_ERROR,
+            "rsDataObjClose: invalid dataObjInp for index %d",
+            l1descInx );
+        return SYS_INVALID_INPUT_PARAM;
+    }
+
+    if ( L1desc[l1descInx].remoteZoneHost != NULL ) {
+        /* cross zone operation */
+        dataObjCloseInp->l1descInx = L1desc[l1descInx].remoteL1descInx;
+        status = rcDataObjClose( L1desc[l1descInx].remoteZoneHost->conn, dataObjCloseInp );
+        dataObjCloseInp->l1descInx = l1descInx;
+    }
+    else {
+        status = _rsDataObjClose( rsComm, dataObjCloseInp );
+        // =-=-=-=-=-=-=-
+        // JMC - backport 4640
+        if ( L1desc[l1descInx].lockFd > 0 ) {
+            char fd_string[NAME_LEN];
+            snprintf( fd_string, sizeof( fd_string ), "%-d", L1desc[l1descInx].lockFd );
+            addKeyVal( &L1desc[l1descInx].dataObjInp->condInput, LOCK_FD_KW, fd_string );
+            irods::server_api_call(
+                DATA_OBJ_UNLOCK_AN,
+                rsComm,
+                L1desc[l1descInx].dataObjInp,
+                NULL,
+                ( void** ) NULL,
+                NULL );
+
+            L1desc[l1descInx].lockFd = -1;
         }
+        // =-=-=-=-=-=-=-
 
-        srcDataObjInfo = L1desc[srcL1descInx].dataObjInfo;
-        if ( strlen( srcDataObjInfo->chksum ) > 0 ) {
-            addKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW, srcDataObjInfo->chksum );
-        }
+        if ( status >= 0 && L1desc[l1descInx].oprStatus >= 0 ) {
+            /* note : this may overlap with acPostProcForPut or
+             * acPostProcForCopy */
+            if ( L1desc[l1descInx].openType == CREATE_TYPE ) {
+                initReiWithDataObjInp( &rei, rsComm,
+                                       L1desc[l1descInx].dataObjInp );
+                rei.doi = L1desc[l1descInx].dataObjInfo;
+                rei.status = status;
 
-        if ( strlen( srcDataObjInfo->chksum ) > 0 &&
-                srcDataObjInfo->replStatus > 0 ) {
-            /* the source has chksum. Must verify chksum */
-            status = _dataObjChksum( rsComm, dataObjInfo, chksumStr );
-            if ( status < 0 ) {
-                dataObjInfo->chksum[0] = '\0';
-                if ( status == DIRECT_ARCHIVE_ACCESS ) {
-                    *chksumStr = strdup( srcDataObjInfo->chksum );
-                    rstrcpy( dataObjInfo->chksum, *chksumStr, NAME_LEN );
-                    return 0;
-                }
-                else {
-                    rodsLog( LOG_NOTICE,
-                             "procChksumForClose: _dataObjChksum error for %s, status = %d",
-                             dataObjInfo->objPath, status );
-                    return status;
-                }
+                // make resource properties available as rule session variables
+                irods::get_resc_properties_as_kvp(rei.doi->rescHier, rei.condInputData);
+
+                rei.status = applyRule( "acPostProcForCreate", NULL, &rei,
+                                        NO_SAVE_REI );
+                /* doi might have changed */
+                L1desc[l1descInx].dataObjInfo = rei.doi;
+                clearKeyVal(rei.condInputData);
+                free(rei.condInputData);
             }
-            else if ( *chksumStr == NULL ) {
-                rodsLog( LOG_ERROR, "chksumStr is NULL" );
-                return SYS_INTERNAL_NULL_INPUT_ERR;
+            else if ( L1desc[l1descInx].openType == OPEN_FOR_READ_TYPE ||
+                      L1desc[l1descInx].openType == OPEN_FOR_WRITE_TYPE ) {
+                initReiWithDataObjInp( &rei, rsComm,
+                                       L1desc[l1descInx].dataObjInp );
+                rei.doi = L1desc[l1descInx].dataObjInfo;
+                rei.status = status;
+
+                // make resource properties available as rule session variables
+                irods::get_resc_properties_as_kvp(rei.doi->rescHier, rei.condInputData);
+
+                rei.status = applyRule( "acPostProcForOpen", NULL, &rei,
+                                        NO_SAVE_REI );
+                /* doi might have changed */
+                L1desc[l1descInx].dataObjInfo = rei.doi;
+                // =-=-=-=-=-=-=-
+                // JMC - bacport 4623
+                clearKeyVal(rei.condInputData);
+                free(rei.condInputData);
             }
-            else {
-                rstrcpy( dataObjInfo->chksum, *chksumStr, NAME_LEN );
-                if ( strcmp( srcDataObjInfo->chksum, *chksumStr ) != 0 ) {
-                    rodsLog( LOG_NOTICE,
-                             "procChksumForClose: chksum mismatch for %s src [%s] new [%s]",
-                             dataObjInfo->objPath, srcDataObjInfo->chksum, *chksumStr );
-                    free( *chksumStr );
-                    *chksumStr = NULL;
-                    return USER_CHKSUM_MISMATCH;
-                }
-                else {
-                    return 0;
-                }
+            else if ( L1desc[l1descInx].oprType == REPLICATE_DEST ) {
+                initReiWithDataObjInp( &rei, rsComm,
+                                       L1desc[l1descInx].dataObjInp );
+                rei.doi = L1desc[l1descInx].dataObjInfo;
+                rei.status = status;
+                rei.status = applyRule( "acPostProcForRepl", NULL, &rei,
+                                        NO_SAVE_REI );
+                /* doi might have changed */
+                L1desc[l1descInx].dataObjInfo = rei.doi;
+                // =-=-=-=-=-=-=-
+                clearKeyVal(rei.condInputData);
+                free(rei.condInputData);
+           }
+
+            if ( L1desc[l1descInx].oprType == COPY_DEST ) {
+                /* have to put copy first because the next test could
+                 * trigger put rule for copy operation */
+                initReiWithDataObjInp( &rei, rsComm,
+                                       L1desc[l1descInx].dataObjInp );
+                rei.doi = L1desc[l1descInx].dataObjInfo;
+                rei.status = status;
+
+                // make resource properties available as rule session variables
+                irods::get_resc_properties_as_kvp(rei.doi->rescHier, rei.condInputData);
+
+                rei.status = applyRule( "acPostProcForCopy", NULL, &rei,
+                                        NO_SAVE_REI );
+                /* doi might have changed */
+                L1desc[l1descInx].dataObjInfo = rei.doi;
+                clearKeyVal(rei.condInputData);
+                free(rei.condInputData);
+            }
+            else if ( L1desc[l1descInx].oprType == PUT_OPR ||
+                      L1desc[l1descInx].openType == CREATE_TYPE ||
+                      ( L1desc[l1descInx].openType == OPEN_FOR_WRITE_TYPE &&
+                        ( L1desc[l1descInx].bytesWritten > 0 ||
+                          dataObjCloseInp->bytesWritten > 0 ) ) ) {
+                initReiWithDataObjInp( &rei, rsComm,
+                                       L1desc[l1descInx].dataObjInp );
+                rei.doi = L1desc[l1descInx].dataObjInfo;
+                rei.status = status;
+
+                // make resource properties available as rule session variables
+                irods::get_resc_properties_as_kvp(rei.doi->rescHier, rei.condInputData);
+
+                rei.status = applyRule( "acPostProcForPut", NULL, &rei,
+                                        NO_SAVE_REI );
+                /* doi might have changed */
+                L1desc[l1descInx].dataObjInfo = rei.doi;
+                clearKeyVal(rei.condInputData);
+                free(rei.condInputData);
+            }
+            else if ( L1desc[l1descInx].dataObjInp != NULL &&
+                      L1desc[l1descInx].dataObjInp->oprType == PHYMV_OPR ) {
+                initReiWithDataObjInp( &rei, rsComm,
+                                       L1desc[l1descInx].dataObjInp );
+                rei.doi = L1desc[l1descInx].dataObjInfo;
+                rei.status = status;
+                rei.status = applyRule( "acPostProcForPhymv", NULL, &rei,
+                                        NO_SAVE_REI );
+                /* doi might have changed */
+                L1desc[l1descInx].dataObjInfo = rei.doi;
+                clearKeyVal(rei.condInputData);
+                free(rei.condInputData);
+
             }
         }
     }
 
-    /* overwriting an old copy. need to verify the chksum again */
-    if ( strlen( L1desc[l1descInx].dataObjInfo->chksum ) > 0 && !L1desc[l1descInx].chksumFlag ) {
-        L1desc[l1descInx].chksumFlag = VERIFY_CHKSUM;
-    }
+    freeL1desc( l1descInx );
 
-    if ( L1desc[l1descInx].chksumFlag == 0 ) {
-        return 0;
-    }
-    else if ( L1desc[l1descInx].chksumFlag == VERIFY_CHKSUM ) {
-        if ( strlen( L1desc[l1descInx].chksum ) > 0 ) {
-            if ( strlen( L1desc[l1descInx].chksum ) > 0 ) {
-                addKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW, L1desc[l1descInx].chksum );
-            }
-
-            status = _dataObjChksum( rsComm, dataObjInfo, chksumStr );
-
-            rmKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW );
-            if ( status < 0 ) {
-                return status;
-            }
-            /* from a put type operation */
-            /* verify against the input value. */
-            if ( strcmp( L1desc[l1descInx].chksum, *chksumStr ) != 0 ) {
-                rodsLog( LOG_NOTICE,
-                         "procChksumForClose: mismatch chksum for %s.inp=%s,compute %s",
-                         dataObjInfo->objPath,
-                         L1desc[l1descInx].chksum, *chksumStr );
-                free( *chksumStr );
-                *chksumStr = NULL;
-                return USER_CHKSUM_MISMATCH;
-            }
-
-            if ( strcmp( dataObjInfo->chksum, *chksumStr ) == 0 ) {
-                /* the same as in rcat */
-                free( *chksumStr );
-                *chksumStr = NULL;
-            }
-        }
-        else if ( oprType == REPLICATE_DEST ) {
-            if ( strlen( dataObjInfo->chksum ) > 0 ) {
-                addKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW, dataObjInfo->chksum );
-
-            }
-            status = _dataObjChksum( rsComm, dataObjInfo, chksumStr );
-            if ( status < 0 ) {
-                return status;
-            }
-            if ( *chksumStr == NULL ) {
-                rodsLog( LOG_ERROR, "chksumStr is NULL" );
-                return SYS_INTERNAL_NULL_INPUT_ERR;
-            }
-
-            if ( strlen( dataObjInfo->chksum ) > 0 ) {
-                rmKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW );
-
-                /* for replication, the chksum in dataObjInfo was duplicated */
-                if ( strcmp( dataObjInfo->chksum, *chksumStr ) != 0 ) {
-                    rodsLog( LOG_NOTICE,
-                             "procChksumForClose:mismach chksum for %s.Rcat=%s,comp %s",
-                             dataObjInfo->objPath, dataObjInfo->chksum, *chksumStr );
-                    status = USER_CHKSUM_MISMATCH;
-                }
-                else {
-                    /* not need to register because reg repl will do it */
-                    free( *chksumStr );
-                    *chksumStr = NULL;
-                    status = 0;
-                }
-            }
-            return status;
-        }
-        else if ( oprType == COPY_DEST ) {
-            /* created through copy */
-            srcL1descInx = L1desc[l1descInx].srcL1descInx;
-            if ( srcL1descInx <= 2 ) {
-                /* not a valid srcL1descInx */
-                rodsLog( LOG_DEBUG,
-                         "procChksumForClose: invalid srcL1descInx %d for copy",
-                         srcL1descInx );
-                /* just register it for now */
-                return 0;
-            }
-            srcDataObjInfo = L1desc[srcL1descInx].dataObjInfo;
-            if ( strlen( srcDataObjInfo->chksum ) > 0 ) {
-                addKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW, srcDataObjInfo->chksum );
-
-            }
-            status = _dataObjChksum( rsComm, dataObjInfo, chksumStr );
-            if ( status < 0 ) {
-                return status;
-            }
-            if ( *chksumStr == NULL ) {
-                rodsLog( LOG_ERROR, "chkSumStr is null." );
-                return SYS_INTERNAL_NULL_INPUT_ERR;
-            }
-            if ( strlen( srcDataObjInfo->chksum ) > 0 ) {
-                rmKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW );
-                if ( strcmp( srcDataObjInfo->chksum, *chksumStr ) != 0 ) {
-                    rodsLog( LOG_NOTICE,
-                             "procChksumForClose:mismach chksum for %s.Rcat=%s,comp %s",
-                             dataObjInfo->objPath, srcDataObjInfo->chksum, *chksumStr );
-                    free( *chksumStr );
-                    *chksumStr = NULL;
-                    return USER_CHKSUM_MISMATCH;
-                }
-            }
-            /* just register it */
-            return 0;
-        }
-    }
-    else {	/* REG_CHKSUM */
-        if ( strlen( L1desc[l1descInx].chksum ) > 0 ) {
-            addKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW, L1desc[l1descInx].chksum );
-        }
-
-        status = _dataObjChksum( rsComm, dataObjInfo, chksumStr );
-        if ( status < 0 ) {
-            return status;
-        }
-
-        if ( strlen( L1desc[l1descInx].chksum ) > 0 ) {
-            rmKeyVal( &dataObjInfo->condInput, ORIG_CHKSUM_KW );
-            /* from a put type operation */
-
-            if ( strcmp( dataObjInfo->chksum, L1desc[l1descInx].chksum ) == 0 ) {
-                /* same as in icat */
-                free( *chksumStr );
-                *chksumStr = NULL;
-            }
-            return 0;
-        }
-        else if ( oprType == COPY_DEST ) {
-            /* created through copy */
-            srcL1descInx = L1desc[l1descInx].srcL1descInx;
-            if ( srcL1descInx <= 2 ) {
-                /* not a valid srcL1descInx */
-                rodsLog( LOG_DEBUG,
-                         "procChksumForClose: invalid srcL1descInx %d for copy",
-                         srcL1descInx );
-                return 0;
-            }
-            srcDataObjInfo = L1desc[srcL1descInx].dataObjInfo;
-            if ( strlen( srcDataObjInfo->chksum ) == 0 ) {
-                free( *chksumStr );
-                *chksumStr = NULL;
-            }
-        }
-        return 0;
-    }
     return status;
-}
+} // rsDataObjClose
+
