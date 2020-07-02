@@ -274,10 +274,12 @@ int rsDataObjPut(
         return status;
     }
 
-    if (!getValByKey(&dataObjInp->condInput, RESC_HIER_STR_KW)) {
+    irods::file_object_ptr file_obj(new irods::file_object());
+    std::string hier{};
+    const char* h{getValByKey(&dataObjInp->condInput, RESC_HIER_STR_KW)};
+    if (!h) {
         try {
-            std::string hier{};
-            std::tie(std::ignore, hier) = irods::resolve_resource_hierarchy(irods::CREATE_OPERATION, rsComm, *dataObjInp);
+            std::tie(file_obj, hier) = irods::resolve_resource_hierarchy(irods::CREATE_OPERATION, rsComm, *dataObjInp);
             addKeyVal(&dataObjInp->condInput, RESC_HIER_STR_KW, hier.c_str());
         }
         catch (const irods::exception& e) {
@@ -289,6 +291,27 @@ int rsDataObjPut(
             irods::log(LOG_ERROR, e.what());
             return e.code();
         }
+    }
+    else {
+        hier = h;
+        dataObjInfo_t* dataObjInfoHead{};
+        irods::file_object_ptr obj(new irods::file_object());
+        irods::error fac_err = irods::file_object_factory(rsComm, dataObjInp, obj, &dataObjInfoHead);
+        if (!fac_err.ok()) {
+            irods::log(fac_err);
+        }
+        file_obj.swap(obj);
+    }
+
+    const auto hier_has_replica{[&hier, &replicas = file_obj->replicas()]() {
+        return std::any_of(replicas.begin(), replicas.end(),
+            [&](const irods::physical_object& replica) {
+                return replica.resc_hier() == hier;
+            });
+        }()};
+
+    if (hier_has_replica && !getValByKey(&dataObjInp->condInput, FORCE_FLAG_KW)) {
+        return OVERWRITE_WITHOUT_FORCE_FLAG;
     }
 
     int status2 = applyRuleForPostProcForWrite( rsComm, dataObjInpBBuf, dataObjInp->objPath );
