@@ -2422,6 +2422,8 @@ irods::error db_mod_data_obj_meta_op(
         return PASS( ret );
     }
 
+    // TODO: logical locking makes this less... the way that it is
+    // TODO: consider a state machine using an atomic system metadata API by building a bag of JSON with the things we would like to update, and then do it
     if (!getValByKey(_reg_param, ALL_REPL_STATUS_KW)) {
         if ( logSQL != 0 ) {
             rodsLog( LOG_SQL, "chlModDataObjMeta SQL 4" );

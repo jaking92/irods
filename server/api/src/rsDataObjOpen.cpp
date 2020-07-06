@@ -517,6 +517,8 @@ int change_replica_status_to_intermediate(
 
 } // anonymous namespace
 
+#define lock
+
 int rsDataObjOpen(
     rsComm_t *rsComm,
     dataObjInp_t *dataObjInp)
@@ -573,6 +575,40 @@ int rsDataObjOpen(
             file_obj.swap(obj);
         }
 
+#ifdef lock
+        char* lockType = getValByKey(&dataObjInp->condInput, LOCK_TYPE_KW);
+        int lockFd = -1;
+        if (lockType) {
+            lockFd = irods::server_api_call(
+                         DATA_OBJ_LOCK_AN,
+                         rsComm, &dataObjInp,
+                         NULL, (void**)NULL, NULL);
+            if ( lockFd > 0 ) {
+                /* rm it so it won't be done again causing deadlock */
+                rmKeyVal(&dataObjInp->condInput, LOCK_TYPE_KW);
+            }
+            else {
+                rodsLog(LOG_ERROR,
+                        "%s: lock error for %s. lockType = %s",
+                        __FUNCTION__, dataObjInp->objPath, lockType );
+                return lockFd;
+            }
+        }
+
+        const auto unlock_data_obj{[&]() {
+            char fd_string[NAME_LEN]{};
+            snprintf( fd_string, sizeof( fd_string ), "%-d", lockFd );
+            addKeyVal( &dataObjInp->condInput, LOCK_FD_KW, fd_string );
+            irods::server_api_call(
+                DATA_OBJ_UNLOCK_AN,
+                rsComm,
+                dataObjInp,
+                NULL,
+                ( void** ) NULL,
+                NULL );
+        }};
+#endif
+
         // Determine if this is a replica creation and do so
         const int writeFlag = getWriteFlag(dataObjInp->openFlags);
         if (dataObjInp->openFlags & O_CREAT && writeFlag > 0) {
@@ -584,7 +620,20 @@ int rsDataObjOpen(
                 }()};
 
             if (!hier_has_replica) {
+#ifdef lock
+                const int l1descInx = create_new_replica(rsComm, *dataObjInp);
+                if ( lockFd >= 0 ) {
+                    if ( l1descInx > 0 ) {
+                        L1desc[l1descInx].lockFd = lockFd;
+                    }
+                    else {
+                        unlock_data_obj();
+                    }
+                }
+                return l1descInx;
+#else
                 return create_new_replica(rsComm, *dataObjInp);
+#endif
             }
 
             // This is an overwrite - swizzle some flags
@@ -602,12 +651,22 @@ int rsDataObjOpen(
             msg << __FUNCTION__;
             msg << " - Unable to select a data obj info matching the resource hierarchy from the keywords.";
             irods::log(ERROR(status, msg.str()));
+#ifdef lock
+            if (lockFd > 0) {
+                unlock_data_obj();
+            }
+#endif
             return status;
         }
 
         // acPreProcForOpen
         status = applyPreprocRuleForOpen( rsComm, dataObjInp, &dataObjInfoHead );
         if (status < 0) {
+#ifdef lock
+            if (lockFd > 0) {
+                unlock_data_obj();
+            }
+#endif
             return status;
         }
 
@@ -621,6 +680,11 @@ int rsDataObjOpen(
             }
 
             if ( status < 0 ) {
+#ifdef lock
+                if (lockFd > 0) {
+                    unlock_data_obj();
+                }
+#endif
                 freeAllDataObjInfo( dataObjInfoHead );
                 return status;
             }
@@ -636,6 +700,11 @@ int rsDataObjOpen(
                 rodsLog( LOG_ERROR,
                          "%s: stageBundledData of %s failed stat=%d",
                          __FUNCTION__, dataObjInfoHead->objPath, status );
+#ifdef lock
+                if (lockFd > 0) {
+                    unlock_data_obj();
+                }
+#endif
                 freeAllDataObjInfo( dataObjInfoHead );
                 return status;
             }
@@ -646,6 +715,11 @@ int rsDataObjOpen(
         tmpDataObjInfo->next = NULL;
         int l1descInx = open_with_obj_info(rsComm, *dataObjInp, tmpDataObjInfo);
         if (l1descInx < 0) {
+#ifdef lock
+            if (lockFd > 0) {
+                unlock_data_obj();
+            }
+#endif
             return l1descInx;
         }
 
@@ -654,6 +728,11 @@ int rsDataObjOpen(
         if (writeFlag > 0) {
             status = change_replica_status_to_intermediate(rsComm, *dataObjInp, tmpDataObjInfo);
             if (status < 0) {
+#ifdef lock
+                if (lockFd > 0) {
+                    unlock_data_obj();
+                }
+#endif
                 THROW(status, "failed to change replica status");
             }
         }
