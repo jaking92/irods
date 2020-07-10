@@ -1,70 +1,56 @@
 #include "objInfo.h"
 #include "rcConnect.h"
+#include "irods_file_object.hpp"
 
-namespace {
-
-} // anonymous namespace
+#include "catalog.hpp"
 
 namespace irods::experimental::replica {
 
-/// transition current replica status to the appropriate new replica status
-auto update_status(
-    rsComm_t* comm,
-    irods::file_object_ptr obj,
-    const int repl_num)
-{
+    /// sets specified replica status to intermediate status and write locks sibling replicas
+    auto make_intermediate(
+        rsComm_t* comm,
+        irods::file_object_ptr obj,
+        const int repl_num) -> int
+    {
+        namespace ic = irods::experimental::catalog;
 
-    switch (repl_status) {
-        case GOOD_REPLICA:
-            break;
+    // get connection to database and make sure it's allowed
+        std::string db_instance_name;
+        nanodbc::connection db_conn;
 
-        case STALE_REPLICA:
-            break;
+        try {
+            std::tie(db_instance_name, db_conn) = ic::new_database_connection();
+        }
+        catch (const std::exception& e) {
+            irods::log(LOG_ERROR, e.what());
+            return SYS_CONFIG_FILE_ERR;
+        }
 
-        case INTERMEDIATE_REPLICA:
-            break;
+        return ic::execute_transaction(db_conn, [&](auto& _trans) -> int
+        {
+            try {
+                nanodbc::statement stmt{db_conn};
 
-        case READ_LOCK_ON_STALE_REPLICA:
-            break;
+                nanodbc::prepare(stmt, "update R_DATA_MAIN set data_is_dirty = ? where data_id = ? and data_repl_num = ?");
 
-        case READ_LOCK_ON_GOOD_REPLICA:
-            break;
+                stmt.bind(0, std::to_string(INTERMEDIATE_REPLICA).c_str());
+                stmt.bind(1, std::to_string(obj->id()).c_str());
+                stmt.bind(2, std::to_string(repl_num).c_str());
 
-        case WRITE_LOCK_ON_REPLICA:
-            break;
+                // TODO: set all sibling replicas to write lock (except for those in read lock)
 
-        default:
-            break;
-    }
+                execute(stmt);
 
-    return 0;
-} // update_replica_status
+                _trans.commit();
 
-/// sets specified replica status to intermediate status and write locks sibling replicas
-auto make_intermediate(
-    rsComm_t* comm,
-    irods::file_object_ptr obj,
-    const int repl_num)
-{
-// get connection to database and make sure it's allowed
+                return 0;
+            }
+            catch (...) {
+                return -1;
+            }
+        });
 
-// set replica to intermediate
-    nanodbc::statement stmt{db_conn};
-
-    prepare(stmt, "insert into R_OBJT_METAMAP (object_id, meta_id, create_ts, modify_ts) "
-                  "values (?, ?, ?, ?)");
-    prepare(stmt, "update R_DATA_MAIN set data_is_dirty = ? where data_id = ? and data_repl_num = ?");
-
-    stmt.bind(0, INTERMEDIATE_REPLICA);
-    stmt.bind(1, obj->id());
-    stmt.bind(2, repl_num);
-
-    execute(stmt);
-
-// set all sibling replicas to write lock (except for those in read lock)
-
-// commit transaction
-
-} // set_intermediate_replica_status
+        return 0;
+    } // set_intermediate_replica_status
 
 } // namespace irods::experimental
