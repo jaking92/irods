@@ -10,6 +10,33 @@
 
 namespace irods::experimental::catalog {
 
+    namespace r_data_main {
+        const std::vector<std::string> columns{
+            "data_id",
+            "coll_id",
+            "data_name",
+            "data_repl_num",
+            "data_version",
+            "data_type_name",
+            "data_size",
+            "resc_group_name",
+            "resc_name",
+            "data_path",
+            "data_owner_name",
+            "data_owner_zone",
+            "data_is_dirty",
+            "data_status",
+            "data_checksum",
+            "data_expiry_ts",
+            "data_map_id",
+            "data_mode",
+            "r_comment",
+            "create_ts",
+            "modify_ts",
+            "resc_hier",
+            "resc_id"};
+    } // namespace r_data_main
+
     enum class entity_type {
         data_object,
         collection,

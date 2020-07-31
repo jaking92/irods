@@ -1,4 +1,5 @@
 #include "catalog.hpp"
+#include "catalog_utilities.hpp"
 #include "irods_exception.hpp"
 #include "irods_logger.hpp"
 #include "rs_finalize_data_object.hpp"
@@ -11,29 +12,69 @@
 
 namespace {
 
-using log   = irods::experimental::log;
-using json  = nlohmann::json;
+    using log   = irods::experimental::log;
+    using json  = nlohmann::json;
 
-auto update_replica_status(
-    nanodbc::connection& _db_conn,
-    std::string_view _data_id,
-    std::string_view _repl_num,
-    std::string_view _status) -> void
-{
-    nanodbc::statement s{_db_conn};
+    namespace ic    = irods::experimental::catalog;
 
-    log::server::debug("updating data_id [{}] repl_num [{}] with status [{}]", _data_id, _repl_num, _status);
+    auto set_replica_state(
+        nanodbc::connection& _db_conn,
+        std::string_view _data_id,
+        json& _before,
+        json& _after) -> void
+    {
+#if 0
+        nanodbc::statement statement{_db_conn};
 
-    prepare(s, "update R_DATA_MAIN set "
-               "data_is_dirty = ? where "
-               "data_id = ? and data_repl_num = ?");
+        // prepare SQL statement string
+        std::string s{"update R_DATA_MAIN set"};
 
-    s.bind(0, _status.data());
-    s.bind(1, _data_id.data());
-    s.bind(2, _repl_num.data());
+        for (auto&& c : ic::r_data_main::columns) {
+            s += fmt::format(" {} = ?", c);
+            if (ic::r_data_main::columns.back() != c) {
+                s+= ",";
+            }
+        }
 
-    execute(s);
-} // update_replica_status
+        s += " where data_id = ? and data_repl_num = ?";
+
+        log::server::debug("statement:[{}]", s);
+
+        prepare(statement, s);
+
+        // apply bind variables
+        std::size_t i = 0;
+        for (; i < ic::r_data_main::columns.size(); ++i) {
+            const auto& key   = ic::r_data_main::columns[i];
+            const auto& value = _after.at(key).get<std::string>();
+
+            log::server::debug("binding [{}] to [{}] at [{}]", key, value, i);
+
+            statement.bind(i, value.c_str());
+        }
+
+        log::server::debug("binding data_id:[{}] at [{}]", _data_id, i);
+        statement.bind(i++, _data_id.data());
+        log::server::debug("binding data_repl_num:[{}] at [{}]", _before.at("data_repl_num").get<std::string>(), i);
+        statement.bind(i,   _before.at("data_repl_num").get<std::string>().c_str());
+
+        execute(statement);
+#else
+        nanodbc::statement statement{_db_conn};
+
+        prepare(statement, "update R_DATA_MAIN set"
+                           " data_is_dirty = ? "
+                           " where data_id = ?");
+
+        statement.bind(0, _after.at("data_is_dirty").get<std::string>().c_str());
+        statement.bind(1, _data_id.data());
+
+        log::server::debug("binding data_is_dirty:[{}] at [0]", _after.at("data_is_dirty").get<std::string>());
+        log::server::debug("binding data_id:[{}] at [1]", _data_id);
+
+        execute(statement);
+#endif
+    } // set_replica_state
 
 auto map_replica_statuses(json _input) -> std::map<std::string, std::string>
 {
@@ -83,14 +124,11 @@ auto rs_finalize_data_object(
     }
 
     std::string data_id;
-    std::map<std::string, std::string> replica_statuses;
-
-    log::server::debug("grabbing info from parsed JSON");
+    json replicas;
 
     try {
         data_id = input.at("data_id").get<std::string>();
-        log::server::debug("found data_id:[{}]", data_id);
-        replica_statuses = map_replica_statuses(input);
+        replicas = input.at("replicas");
     }
     catch (const std::exception& e) {
         //*_output = to_bytes_buffer(make_error_object(json{}, 0, e.what()).dump());
@@ -108,10 +146,11 @@ auto rs_finalize_data_object(
     }
 
     return ic::execute_transaction(db_conn, [&](auto& _trans) -> int
-    {       
+    {
         try {
-            for (auto&& r : replica_statuses) {
-                update_replica_status(db_conn, data_id, r.first, r.second);
+            for (auto&& r : replicas) {
+                log::server::debug("setting status for replica before:[{}],after:[{}]", r.at("before").dump(), r.at("after").dump());
+                set_replica_state(db_conn, data_id, r.at("before"), r.at("after"));
             }
 
             _trans.commit();

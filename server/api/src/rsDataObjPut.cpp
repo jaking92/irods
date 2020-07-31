@@ -1,8 +1,3 @@
-/*** Copyright (c), The Regents of the University of California            ***
- *** For more information please refer to files in the COPYRIGHT directory ***/
-/* This is script-generated code (for the most part).  */
-/* See dataObjPut.h for a description of this API call.*/
-
 #include "dataObjPut.h"
 #include "rodsLog.h"
 #include "dataPut.h"
@@ -35,6 +30,7 @@
 #include "rsUnregDataObj.hpp"
 #include "rsDataObjOpen.hpp"
 #include "rsDataObjWrite.hpp"
+#include "rs_finalize_data_object.hpp"
 
 #include "irods_at_scope_exit.hpp"
 #include "irods_exception.hpp"
@@ -45,7 +41,44 @@
 #include "irods_serialization.hpp"
 #include "irods_server_properties.hpp"
 
+#include "fmt/format.h"
+#include "json.hpp"
+
 namespace {
+
+using json  = nlohmann::json;
+using log   = irods::experimental::log;
+
+auto finalize_data_object(
+    rsComm_t& _comm,
+    const int _data_id,
+    const int _resc_id,
+    const int _repl_status) -> int
+{
+    log::server::debug("data_id:[{}],_resc_id:[{}],repl_status:[{}]", _data_id, _resc_id, _repl_status);
+    const auto input = json{
+        {"data_id", std::to_string(_data_id)},
+        {"replicas", json::array({
+            {
+                {"before", {
+                    {"data_is_dirty", std::to_string(_repl_status)},
+                    {"resc_id", std::to_string(_resc_id)}
+                }},
+                {"after", {
+                    {"data_is_dirty", std::to_string(_repl_status + 6)},
+                    {"resc_id", std::to_string(_resc_id)}
+                }}
+            }
+        })}
+    }.dump();
+
+    bytesBuf_t bb{
+        .len = static_cast<int>(input.length()),
+        .buf = const_cast<char*>(input.c_str())
+    };
+
+    return rs_finalize_data_object(&_comm, &bb, nullptr);
+} // finalize_data_object
 
 int parallel_transfer_put(
     rsComm_t *rsComm,
@@ -148,6 +181,10 @@ int single_buffer_put(
     dataObjWriteInp.len = dataObjInpBBuf->len;
     dataObjWriteInp.l1descInx = l1descInx;
 
+    //const auto data_id = myDataObjInfo->dataId;
+    //const auto resc_id = myDataObjInfo->rescId;
+    //const auto repl_status = myDataObjInfo->replStatus;
+
     bytesBuf_t dataObjWriteInpBBuf{};
     dataObjWriteInpBBuf.buf = dataObjInpBBuf->buf;
     dataObjWriteInpBBuf.len = dataObjInpBBuf->len;
@@ -193,6 +230,8 @@ int single_buffer_put(
     if (status < 0) {
         return status;
     }
+
+    //finalize_data_object(*rsComm, data_id, resc_id, repl_status);
 
     if (getValByKey(&dataObjInp->condInput, ALL_KW)) {
         /* update the rest of copies */

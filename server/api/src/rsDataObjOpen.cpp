@@ -68,16 +68,17 @@ using logger = irods::experimental::log;
 namespace {
 
 int register_intermediate_replica(
-    rsComm_t* _comm,
-    dataObjInp_t* _inp,
-    const char* _path) {
-    if (!getValByKey(&_inp->condInput, REGISTER_AS_INTERMEDIATE_KW)) {
-        addKeyVal(&_inp->condInput, REGISTER_AS_INTERMEDIATE_KW, "");
-    }
-    addKeyVal(&_inp->condInput, FILE_PATH_KW, _path);
-    addKeyVal(&_inp->condInput, DATA_SIZE_KW, "0");
-    return rsPhyPathReg(_comm, _inp);
-}
+    rsComm_t&      _comm,
+    dataObjInfo_t& _in)
+{
+    dataObjInfo_t* out{};
+    ix::key_value_proxy kvp{_in.condInput};
+    kvp[REGISTER_AS_INTERMEDIATE_KW] = "";
+    kvp[FILE_PATH_KW] = _in.filePath;
+    kvp[DATA_SIZE_KW] = "0";
+
+    return rsRegDataObj(&_comm, &_in, &out);
+} // register_intermediate_replica
 
 int l3CreateByObjInfo(
     rsComm_t* rsComm,
@@ -269,7 +270,7 @@ int create_new_replica(
         return status;
     }
 
-    status = register_intermediate_replica(rsComm, L1desc[l1descInx].dataObjInp, dataObjInfo->filePath);
+    status = register_intermediate_replica(*rsComm, *(L1desc[l1descInx].dataObjInfo));
     if (status < 0) {
         freeL1desc(l1descInx);
         return status;
@@ -278,6 +279,10 @@ int create_new_replica(
     if (getValByKey(&dataObjInp.condInput, NO_OPEN_FLAG_KW)) {
         return l1descInx;
     }
+
+    dataObjInfo_t* info = L1desc[l1descInx].dataObjInfo;
+    rodsLog(LOG_NOTICE, "[%s:%d] - registered with dataId [%lld] objPath [%s] rescHier [%s] rescId [%lld]",
+        __FUNCTION__, __LINE__, info->dataId, info->objPath, info->rescHier, info->rescId);
 
     status = l3Create(rsComm, l1descInx);
     if (status < 0) {
