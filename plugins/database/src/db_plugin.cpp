@@ -673,6 +673,7 @@ irods::error validate_resource_name( std::string _resc_name ) {
         msg << "validate_resource_name failed for resource [";
         msg << _resc_name;
         msg << "]";
+        rodsLog(LOG_ERROR, msg.str().c_str());
         return ERROR( SYS_INVALID_INPUT_PARAM, msg.str() );
     }
 
@@ -777,6 +778,7 @@ irods::error validate_zone_name(
         msg << "validate_zone_name failed for zone [";
         msg << _zone_name;
         msg << "]";
+        rodsLog(LOG_ERROR, msg.str().c_str());
         return ERROR( SYS_INVALID_INPUT_PARAM, msg.str() );
     }
 
@@ -2825,6 +2827,7 @@ irods::error db_reg_replica_op(
             << " for ["
             << _dst_data_obj_info->objPath
             << "]";
+        rodsLog(LOG_ERROR, msg.str().c_str());
         return ERROR(
                 SYS_INVALID_INPUT_PARAM,
                 msg.str() );
@@ -3667,6 +3670,7 @@ irods::error db_add_child_resc_op(
     child_parser.list( c_map );
 
     if(c_map.empty()) {
+       rodsLog(LOG_ERROR, "[%s]: child map is empty", __FUNCTION__);
        return ERROR(
                   SYS_INVALID_INPUT_PARAM,
                   "child map is empty" );
@@ -13429,6 +13433,7 @@ irods::error db_get_distinct_data_obj_count_on_resource_op(
     // check incoming pointers
     if ( !_resc_name ||
             !_count ) {
+        rodsLog(LOG_ERROR, "[%s]: null input param", __FUNCTION__);
         return ERROR(
                    SYS_INVALID_INPUT_PARAM,
                    "null input param" );
@@ -13496,6 +13501,7 @@ irods::error db_get_distinct_data_objs_missing_from_child_given_parent_op(
             !_child     ||
             _limit <= 0 ||
             !_results ) {
+        rodsLog(LOG_ERROR, "[%s]: null or invalid input param", __FUNCTION__);
         return ERROR(
                    SYS_INVALID_INPUT_PARAM,
                    "null or invalid input param" );
@@ -13697,6 +13703,7 @@ irods::error db_get_hierarchy_for_resc_op(
     if ( !_resc_name    ||
             !_zone_name    ||
             !_hierarchy ) {
+        rodsLog(LOG_ERROR, "[%s]: null or invalid input param", __FUNCTION__);
         return ERROR(
                    SYS_INVALID_INPUT_PARAM,
                    "null or invalid input param" );
@@ -14400,6 +14407,7 @@ irods::error db_get_icss_op(
     // =-=-=-=-=-=-=-
     // check incoming pointers
     if ( !_icss ) {
+        rodsLog(LOG_ERROR, "[%s]: null or invalid input param", __FUNCTION__);
         return ERROR(
                    SYS_INVALID_INPUT_PARAM,
                    "null or invalid input param" );
