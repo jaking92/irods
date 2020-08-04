@@ -19,7 +19,7 @@ namespace irods::experimental::catalog {
             "data_version",
             "data_type_name",
             "data_size",
-            "resc_group_name",
+            //"resc_group_name",
             "resc_name",
             "data_path",
             "data_owner_name",

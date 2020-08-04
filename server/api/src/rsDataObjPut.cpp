@@ -51,9 +51,7 @@ using log   = irods::experimental::log;
 auto finalize_data_object(
     rsComm_t& _comm,
     const int _data_id,
-    const int _repl_num,
-    const int _resc_id,
-    const int _repl_status) -> int
+    const dataObjInfo_t& _info) -> int
 {
     log::server::debug("data_id:[{}],_resc_id:[{}],repl_status:[{}]", _data_id, _resc_id, _repl_status);
     const auto input = json{
@@ -61,30 +59,54 @@ auto finalize_data_object(
         {"replicas", json::array({
             {
                 {"before", {
-                    {"resc_id", std::to_string(_resc_id)},
-                    {"data_id", std::to_string(_data_id)},
-                    {"data_repl_num", std::to_string(_repl_num)},
-                    {"data_is_dirty", std::to_string(_repl_status)}
+                    {"data_id", std::to_string(_info->dataId)},
+                    {"coll_id", std::to_string(_info->collId)},
+                    {"data_name", std::to_string(fs::path{_info->objPath}.filename())},
+                    {"data_repl_num", std::to_string(_info->replNum)},
+                    {"data_version", std::to_string(_info->version)},
+                    {"data_type_name", std::to_string(_info->dataType)},
+                    {"data_size", std::to_string(_info->dataSize)},
+                    //{"resc_group_name", std::to_string(_info->rescGroup)},
+                    {"resc_name", std::to_string(_info->rescName)},
+                    {"data_path", std::to_string(_info->filePath)},
+                    {"data_owner_name", std::to_string(_info->dataOwnerName)},
+                    {"data_owner_zone", std::to_string(_info->dataOwnerZone)},
+                    {"data_is_dirty", std::to_string(_info->replStatus)},
+                    {"data_status", std::to_string(_info->statusString)},
+                    {"data_checksum", std::to_string(_info->chksum)},
+                    {"data_expiry_ts", std::to_string(_info->dataExpiry)},
+                    {"data_map_id", std::to_string(_info->dataMapId)},
+                    {"data_mode", std::to_string(_info->dataMode)},
+                    {"r_comment", std::to_string(_info->dataComments)},
+                    {"create_ts", std::to_string(_info->dataCreate)},
+                    {"modify_ts", std::to_string(_info->dataModify)},
+                    {"resc_hier", std::to_string(_info->rescHier)},
+                    {"resc_id", std::to_string(_info->rescId)}
                 }},
                 {"after", {
-                    {"resc_id", std::to_string(_resc_id)},
-                    {"data_id", std::to_string(_data_id)},
-                    {"data_repl_num", std::to_string(_repl_num + 22)},
-                    {"data_is_dirty", std::to_string(_repl_status + 6)}
-                }}
-            },
-            {
-                {"before", {
-                    {"resc_id", std::to_string(_resc_id)},
-                    {"data_id", std::to_string(_data_id)},
-                    {"data_repl_num", std::to_string(_repl_num)},
-                    {"data_is_dirty", std::to_string(_repl_status)}
-                }},
-                {"after", {
-                    {"resc_id", std::to_string(_resc_id)},
-                    {"data_id", std::to_string(_data_id)},
-                    {"data_repl_num", std::to_string(44)},
-                    {"data_is_dirty", std::to_string(_repl_status + 6)}
+                    {"data_id", std::to_string(_info->dataId)},
+                    {"coll_id", std::to_string(_info->collId)},
+                    {"data_name", std::to_string(fs::path{_info->objPath}.filename())},
+                    {"data_repl_num", std::to_string(_info->replNum)},
+                    {"data_version", std::to_string(_info->version)},
+                    {"data_type_name", std::to_string(_info->dataType)},
+                    {"data_size", std::to_string(_info->dataSize)},
+                    //{"resc_group_name", std::to_string(_info->rescGroup)},
+                    {"resc_name", std::to_string(_info->rescName)},
+                    {"data_path", std::to_string(_info->filePath)},
+                    {"data_owner_name", std::to_string(_info->dataOwnerName)},
+                    {"data_owner_zone", std::to_string(_info->dataOwnerZone)},
+                    {"data_is_dirty", std::to_string(_info->replStatus)},
+                    {"data_status", std::to_string(_info->statusString)},
+                    {"data_checksum", std::to_string(_info->chksum)},
+                    {"data_expiry_ts", std::to_string(_info->dataExpiry)},
+                    {"data_map_id", std::to_string(_info->dataMapId)},
+                    {"data_mode", std::to_string(_info->dataMode)},
+                    {"r_comment", std::to_string(_info->dataComments)},
+                    {"create_ts", std::to_string(_info->dataCreate)},
+                    {"modify_ts", std::to_string(_info->dataModify)},
+                    {"resc_hier", std::to_string(_info->rescHier)},
+                    {"resc_id", std::to_string(_info->rescId)}
                 }}
             }
         })}
