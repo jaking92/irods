@@ -23,6 +23,7 @@ namespace {
         const json _before,
         const json _after) -> void
     {
+        try {
 #if 0
         nanodbc::statement statement{_db_conn};
 
@@ -61,63 +62,62 @@ namespace {
 
         execute(statement);
 #else
-        try {
             nanodbc::statement statement{_db_conn};
 
             // clang-format off
             const std::string s{"update R_DATA_MAIN set"
-                " data_id = ?"
-                ",coll_id = ?"
-                ",data_name = ?"
-                ",data_repl_num = ?"
-                ",data_version = ?"
-                ",data_type_name = ?"
-                ",data_size = ?"
-                //",resc_group_name = ?"
-                ",resc_name = ?"
-                ",data_path = ?"
-                ",data_owner_name = ?"
-                ",data_owner_zone = ?"
-                ",data_is_dirty = ?"
-                ",data_status = ?"
-                ",data_checksum = ?"
-                ",data_expiry_ts = ?"
-                ",data_map_id = ?"
-                ",data_mode = ?"
+                //" data_id = ?"
+                //",coll_id = ?"
+                //",data_name = ?"
+                //",data_repl_num = ?"
+                //",data_version = ?"
+                //",data_type_name = ?"
+                //",data_size = ?"
+                ////",resc_group_name = ?"
+                //",resc_name = ?"
+                //",data_path = ?"
+                //",data_owner_name = ?"
+                //",data_owner_zone = ?"
+                //",data_is_dirty = ?"
+                //",data_status = ?"
+                //",data_checksum = ?"
+                //",data_expiry_ts = ?"
+                //",data_map_id = ?"
+                //",data_mode = ?"
                 ",r_comment = ?"
-                ",create_ts = ?"
-                ",modify_ts = ?"
-                ",resc_hier = ?"
-                ",resc_id = ?"
+                //",create_ts = ?"
+                //",modify_ts = ?"
+                //",resc_hier = ?"
+                //",resc_id = ?"
                 " where resc_id = ? and data_id = ?"};
 
             log::server::debug("[{}:{}] - statement:[{}]", __FUNCTION__, __LINE__, s);
 
             prepare(statement, s);
 
-            const auto data_id = std::atoll(_after.at("data_id").get<std::string());
-            const auto coll_id = std::atoll(_after.at("coll_id").get<std::string());
-            const auto data_name = _after.at("data_name").get<std::string().data()
-            const auto data_repl_num = std::atoi(_after.at("data_repl_num").get<std::string());
-            const auto data_version = _after.at("data_version").get<std::string().data();
-            const auto data_type_name = _after.at("data_type_name").get<std::string().data();
-            const auto data_size = std::atoll(_after.at("data_size").get<std::string());
-            //const auto resc_group_name = _after.at("resc_group_name").get<std::string().data();
-            const auto resc_name = _after.at("resc_name").get<std::string().data();
-            const auto data_path = _after.at("data_path").get<std::string().data();
-            const auto data_owner_name = _after.at("data_owner_name").get<std::string().data();
-            const auto data_owner_zone = _after.at("data_owner_zone").get<std::string().data();
-            const auto data_is_dirty = std::atoi(_after.at("data_is_dirty").get<std::string());
-            const auto data_status = _after.at("data_status").get<std::string().data();
-            const auto data_checksum = _after.at("data_checksum").get<std::string().data();
-            const auto data_expiry_ts = _after.at("data_expiry_ts").get<std::string().data();
-            const auto data_map_id = std::atoll(_after.at("data_map_id").get<std::string());
-            const auto data_mode = _after.at("data_mode").get<std::string().data();
-            const auto r_comment = _after.at("r_comment").get<std::string().data();
-            const auto create_ts = _after.at("create_ts").get<std::string().data();
-            const auto modify_ts = _after.at("modify_ts").get<std::string().data();
-            const auto resc_hier = _after.at("resc_hier").get<std::string().data();
-            const auto resc_id = std::atoll(_after.at("resc_id").get<std::string());
+            const auto data_id = std::stoll(_after.at("data_id").get<std::string>());
+            const auto coll_id = std::stoll(_after.at("coll_id").get<std::string>());
+            const auto data_name = _after.at("data_name").get<std::string>().data();
+            const auto data_repl_num = std::stoi(_after.at("data_repl_num").get<std::string>());
+            const auto data_version = _after.at("data_version").get<std::string>().data();
+            const auto data_type_name = _after.at("data_type_name").get<std::string>().data();
+            const auto data_size = std::stoll(_after.at("data_size").get<std::string>());
+            //const auto resc_group_name = _after.at("resc_group_name").get<std::string>().data();
+            const auto resc_name = _after.at("resc_name").get<std::string>().data();
+            const auto data_path = _after.at("data_path").get<std::string>().data();
+            const auto data_owner_name = _after.at("data_owner_name").get<std::string>().data();
+            const auto data_owner_zone = _after.at("data_owner_zone").get<std::string>().data();
+            const auto data_is_dirty = std::stoi(_after.at("data_is_dirty").get<std::string>());
+            const auto data_status = _after.at("data_status").get<std::string>().data();
+            const auto data_checksum = _after.at("data_checksum").get<std::string>().data();
+            const auto data_expiry_ts = _after.at("data_expiry_ts").get<std::string>().data();
+            const auto data_map_id = std::stoll(_after.at("data_map_id").get<std::string>());
+            const auto data_mode = _after.at("data_mode").get<std::string>().data();
+            const auto r_comment = _after.at("r_comment").get<std::string>().data();
+            const auto create_ts = _after.at("create_ts").get<std::string>().data();
+            const auto modify_ts = _after.at("modify_ts").get<std::string>().data();
+            const auto resc_hier = _after.at("resc_hier").get<std::string>().data();
+            const auto resc_id = std::stoll(_after.at("resc_id").get<std::string>());
 
             const rodsLong_t b_data_id = std::stoll(_data_id.data());
             const rodsLong_t b_resc_id = std::stoll(_before.at("resc_id").get<std::string>());
@@ -126,37 +126,37 @@ namespace {
             short index{};
             statement.bind(index++, &data_id);
             statement.bind(index++, &coll_id);
-            statement.bind(index++, &data_name);
+            statement.bind(index++, data_name);
             statement.bind(index++, &data_repl_num);
-            statement.bind(index++, &data_version);
-            statement.bind(index++, &data_type_name);
+            statement.bind(index++, data_version);
+            statement.bind(index++, data_type_name);
             statement.bind(index++, &data_size);
             //statement.bind(index++, &resc_group_name);
-            statement.bind(index++, &resc_name);
-            statement.bind(index++, &data_path);
-            statement.bind(index++, &data_owner_name);
-            statement.bind(index++, &data_owner_zone);
+            statement.bind(index++, resc_name);
+            statement.bind(index++, data_path);
+            statement.bind(index++, data_owner_name);
+            statement.bind(index++, data_owner_zone);
             statement.bind(index++, &data_is_dirty);
-            statement.bind(index++, &data_status);
-            statement.bind(index++, &data_checksum);
-            statement.bind(index++, &data_expiry_ts);
+            statement.bind(index++, data_status);
+            statement.bind(index++, data_checksum);
+            statement.bind(index++, data_expiry_ts);
             statement.bind(index++, &data_map_id);
-            statement.bind(index++, &data_mode);
-            statement.bind(index++, &r_comment);
-            statement.bind(index++, &create_ts);
-            statement.bind(index++, &modify_ts);
-            statement.bind(index++, &resc_hier);
-            statement.bind(index++, &resc_i);
+            statement.bind(index++, data_mode);
+            statement.bind(index++, r_comment);
+            statement.bind(index++, create_ts);
+            statement.bind(index++, modify_ts);
+            statement.bind(index++, resc_hier);
+            statement.bind(index++, &resc_id);
 
             statement.bind(index++, &b_resc_id);
             statement.bind(index++, &b_data_id);
 
             execute(statement);
+#endif
         }
         catch (const nanodbc::database_error& e) {
             THROW(SYS_LIBRARY_ERROR, e.what());
         }
-#endif
     } // set_replica_state
 
 } // anonymous namespace
@@ -221,10 +221,6 @@ auto rs_finalize_data_object(
             return 0;
         }
         catch (const irods::exception& e) {
-            log::server::error(e.what());
-            return e.code();
-        }
-        catch (const nanodbc::database_error& e) {
             log::server::error(e.what());
             return e.code();
         }

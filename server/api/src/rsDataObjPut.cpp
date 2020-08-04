@@ -40,6 +40,9 @@
 #include "irods_serialization.hpp"
 #include "irods_server_properties.hpp"
 
+#define IRODS_FILESYSTEM_ENABLE_SERVER_SIDE_API
+#include "filesystem.hpp"
+
 #include "fmt/format.h"
 #include "json.hpp"
 
@@ -50,63 +53,65 @@ using log   = irods::experimental::log;
 
 auto finalize_data_object(
     rsComm_t& _comm,
-    const int _data_id,
     const dataObjInfo_t& _info) -> int
 {
-    log::server::debug("data_id:[{}],_resc_id:[{}],repl_status:[{}]", _data_id, _resc_id, _repl_status);
+    namespace fs = irods::experimental::filesystem;
+
+    log::server::debug("data_id:[{}],_resc_id:[{}],repl_status:[{}]", _info.dataId, _info.rescId, _info.replStatus);
+
     const auto input = json{
-        {"data_id", std::to_string(_data_id)},
+        {"data_id", std::to_string(_info.dataId)},
         {"replicas", json::array({
             {
                 {"before", {
-                    {"data_id", std::to_string(_info->dataId)},
-                    {"coll_id", std::to_string(_info->collId)},
-                    {"data_name", std::to_string(fs::path{_info->objPath}.filename())},
-                    {"data_repl_num", std::to_string(_info->replNum)},
-                    {"data_version", std::to_string(_info->version)},
-                    {"data_type_name", std::to_string(_info->dataType)},
-                    {"data_size", std::to_string(_info->dataSize)},
-                    //{"resc_group_name", std::to_string(_info->rescGroup)},
-                    {"resc_name", std::to_string(_info->rescName)},
-                    {"data_path", std::to_string(_info->filePath)},
-                    {"data_owner_name", std::to_string(_info->dataOwnerName)},
-                    {"data_owner_zone", std::to_string(_info->dataOwnerZone)},
-                    {"data_is_dirty", std::to_string(_info->replStatus)},
-                    {"data_status", std::to_string(_info->statusString)},
-                    {"data_checksum", std::to_string(_info->chksum)},
-                    {"data_expiry_ts", std::to_string(_info->dataExpiry)},
-                    {"data_map_id", std::to_string(_info->dataMapId)},
-                    {"data_mode", std::to_string(_info->dataMode)},
-                    {"r_comment", std::to_string(_info->dataComments)},
-                    {"create_ts", std::to_string(_info->dataCreate)},
-                    {"modify_ts", std::to_string(_info->dataModify)},
-                    {"resc_hier", std::to_string(_info->rescHier)},
-                    {"resc_id", std::to_string(_info->rescId)}
+                    {"data_id", std::to_string(_info.dataId)},
+                    {"coll_id", std::to_string(_info.collId)},
+                    {"data_name", fs::path{_info.objPath}.object_name()},
+                    {"data_repl_num", std::to_string(_info.replNum)},
+                    {"data_version", _info.version},
+                    {"data_type_name", _info.dataType},
+                    {"data_size", std::to_string(_info.dataSize)},
+                    //{"resc_group_name", std::to_string(_info.rescGroup)},
+                    {"resc_name", _info.rescName},
+                    {"data_path", _info.filePath},
+                    {"data_owner_name", _info.dataOwnerName},
+                    {"data_owner_zone", _info.dataOwnerZone},
+                    {"data_is_dirty", std::to_string(_info.replStatus)},
+                    {"data_status", _info.statusString},
+                    {"data_checksum", _info.chksum},
+                    {"data_expiry_ts", _info.dataExpiry},
+                    {"data_map_id", std::to_string(_info.dataMapId)},
+                    {"data_mode", _info.dataMode},
+                    {"r_comment", _info.dataComments},
+                    {"create_ts", _info.dataCreate},
+                    {"modify_ts", _info.dataModify},
+                    {"resc_hier", _info.rescHier},
+                    {"resc_id", std::to_string(_info.rescId)}
                 }},
                 {"after", {
-                    {"data_id", std::to_string(_info->dataId)},
-                    {"coll_id", std::to_string(_info->collId)},
-                    {"data_name", std::to_string(fs::path{_info->objPath}.filename())},
-                    {"data_repl_num", std::to_string(_info->replNum)},
-                    {"data_version", std::to_string(_info->version)},
-                    {"data_type_name", std::to_string(_info->dataType)},
-                    {"data_size", std::to_string(_info->dataSize)},
-                    //{"resc_group_name", std::to_string(_info->rescGroup)},
-                    {"resc_name", std::to_string(_info->rescName)},
-                    {"data_path", std::to_string(_info->filePath)},
-                    {"data_owner_name", std::to_string(_info->dataOwnerName)},
-                    {"data_owner_zone", std::to_string(_info->dataOwnerZone)},
-                    {"data_is_dirty", std::to_string(_info->replStatus)},
-                    {"data_status", std::to_string(_info->statusString)},
-                    {"data_checksum", std::to_string(_info->chksum)},
-                    {"data_expiry_ts", std::to_string(_info->dataExpiry)},
-                    {"data_map_id", std::to_string(_info->dataMapId)},
-                    {"data_mode", std::to_string(_info->dataMode)},
-                    {"r_comment", std::to_string(_info->dataComments)},
-                    {"create_ts", std::to_string(_info->dataCreate)},
-                    {"modify_ts", std::to_string(_info->dataModify)},
-                    {"resc_hier", std::to_string(_info->rescHier)},
-                    {"resc_id", std::to_string(_info->rescId)}
+                    {"data_id", std::to_string(_info.dataId)},
+                    {"coll_id", std::to_string(_info.collId)},
+                    {"data_name", fs::path{_info.objPath}.object_name()},
+                    {"data_repl_num", std::to_string(_info.replNum)},
+                    {"data_version", _info.version},
+                    {"data_type_name", _info.dataType},
+                    {"data_size", std::to_string(_info.dataSize)},
+                    //{"resc_group_name", std::to_string(_info.rescGroup)},
+                    {"resc_name", _info.rescName},
+                    {"data_path", _info.filePath},
+                    {"data_owner_name", _info.dataOwnerName},
+                    {"data_owner_zone", _info.dataOwnerZone},
+                    {"data_is_dirty", std::to_string(_info.replStatus)},
+                    {"data_status", _info.statusString},
+                    {"data_checksum", _info.chksum},
+                    {"data_expiry_ts", _info.dataExpiry},
+                    {"data_map_id", std::to_string(_info.dataMapId)},
+                    {"data_mode", _info.dataMode},
+                    {"r_comment", "hi i'm paul"},
+                    {"create_ts", _info.dataCreate},
+                    {"modify_ts", _info.dataModify},
+                    {"resc_hier", _info.rescHier},
+                    {"resc_id", std::to_string(_info.rescId)}
                 }}
             }
         })}
@@ -223,11 +228,6 @@ int single_buffer_put(
     dataObjWriteInp.len = dataObjInpBBuf->len;
     dataObjWriteInp.l1descInx = l1descInx;
 
-    const auto data_id = myDataObjInfo->dataId;
-    const auto repl_num = myDataObjInfo->replNum;
-    const auto resc_id = myDataObjInfo->rescId;
-    const auto repl_status = myDataObjInfo->replStatus;
-
     bytesBuf_t dataObjWriteInpBBuf{};
     dataObjWriteInpBBuf.buf = dataObjInpBBuf->buf;
     dataObjWriteInpBBuf.len = dataObjInpBBuf->len;
@@ -255,6 +255,9 @@ int single_buffer_put(
 
     L1desc[l1descInx].dataSize = dataObjInp->dataSize;
 
+    dataObjInfo_t info{};
+    std::memcpy(&info, L1desc[l1descInx].dataObjInfo, sizeof(dataObjInfo_t));
+
     openedDataObjInp_t dataObjCloseInp{};
     dataObjCloseInp.l1descInx = l1descInx;
     L1desc[l1descInx].oprStatus = bytesWritten;
@@ -278,7 +281,7 @@ int single_buffer_put(
     //  - It's too late to get the information from the L1desc, it has been freed at this point
     //  1. Go to the catalog to get the latest information
     //  2. Rely on rsDataObjClose or replica_close/finalize to return updated data object information and pass that to data object finalize as "before"
-    finalize_data_object(*rsComm, data_id, repl_num, resc_id, repl_status);
+    finalize_data_object(*rsComm, info);
 
     if (getValByKey(&dataObjInp->condInput, ALL_KW)) {
         /* update the rest of copies */
