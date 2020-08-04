@@ -48,288 +48,288 @@
 
 namespace {
 
-using json  = nlohmann::json;
-using log   = irods::experimental::log;
+    using json  = nlohmann::json;
+    using log   = irods::experimental::log;
 
-auto finalize_data_object(
-    rsComm_t& _comm,
-    const dataObjInfo_t& _info) -> int
-{
-    namespace fs = irods::experimental::filesystem;
+    auto finalize_data_object(
+        rsComm_t& _comm,
+        const dataObjInfo_t& _info) -> int
+    {
+        namespace fs = irods::experimental::filesystem;
 
-    log::server::debug("data_id:[{}],_resc_id:[{}],repl_status:[{}]", _info.dataId, _info.rescId, _info.replStatus);
+        log::server::debug("data_id:[{}],_resc_id:[{}],repl_status:[{}]", _info.dataId, _info.rescId, _info.replStatus);
 
-    const auto input = json{
-        {"data_id", std::to_string(_info.dataId)},
-        {"replicas", json::array({
-            {
-                {"before", {
-                    {"data_id", std::to_string(_info.dataId)},
-                    {"coll_id", std::to_string(_info.collId)},
-                    {"data_name", fs::path{_info.objPath}.object_name()},
-                    {"data_repl_num", std::to_string(_info.replNum)},
-                    {"data_version", _info.version},
-                    {"data_type_name", _info.dataType},
-                    {"data_size", std::to_string(_info.dataSize)},
-                    //{"resc_group_name", std::to_string(_info.rescGroup)},
-                    {"resc_name", _info.rescName},
-                    {"data_path", _info.filePath},
-                    {"data_owner_name", _info.dataOwnerName},
-                    {"data_owner_zone", _info.dataOwnerZone},
-                    {"data_is_dirty", std::to_string(_info.replStatus)},
-                    {"data_status", _info.statusString},
-                    {"data_checksum", _info.chksum},
-                    {"data_expiry_ts", _info.dataExpiry},
-                    {"data_map_id", std::to_string(_info.dataMapId)},
-                    {"data_mode", _info.dataMode},
-                    {"r_comment", _info.dataComments},
-                    {"create_ts", _info.dataCreate},
-                    {"modify_ts", _info.dataModify},
-                    {"resc_hier", _info.rescHier},
-                    {"resc_id", std::to_string(_info.rescId)}
-                }},
-                {"after", {
-                    {"data_id", std::to_string(_info.dataId)},
-                    {"coll_id", std::to_string(_info.collId)},
-                    {"data_name", fs::path{_info.objPath}.object_name()},
-                    {"data_repl_num", std::to_string(_info.replNum)},
-                    {"data_version", _info.version},
-                    {"data_type_name", _info.dataType},
-                    {"data_size", std::to_string(_info.dataSize)},
-                    //{"resc_group_name", std::to_string(_info.rescGroup)},
-                    {"resc_name", _info.rescName},
-                    {"data_path", _info.filePath},
-                    {"data_owner_name", _info.dataOwnerName},
-                    {"data_owner_zone", _info.dataOwnerZone},
-                    {"data_is_dirty", std::to_string(_info.replStatus)},
-                    {"data_status", _info.statusString},
-                    {"data_checksum", _info.chksum},
-                    {"data_expiry_ts", _info.dataExpiry},
-                    {"data_map_id", std::to_string(_info.dataMapId)},
-                    {"data_mode", _info.dataMode},
-                    {"r_comment", "hi i'm paul"},
-                    {"create_ts", _info.dataCreate},
-                    {"modify_ts", _info.dataModify},
-                    {"resc_hier", _info.rescHier},
-                    {"resc_id", std::to_string(_info.rescId)}
-                }}
-            }
-        })}
-    }.dump();
+        const auto input = json{
+            {"data_id", std::to_string(_info.dataId)},
+            {"replicas", json::array({
+                {
+                    {"before", {
+                        {"data_id", std::to_string(_info.dataId)},
+                        {"coll_id", std::to_string(_info.collId)},
+                        {"data_name", fs::path{_info.objPath}.object_name()},
+                        {"data_repl_num", std::to_string(_info.replNum)},
+                        {"data_version", _info.version},
+                        {"data_type_name", _info.dataType},
+                        {"data_size", std::to_string(_info.dataSize)},
+                        //{"resc_group_name", std::to_string(_info.rescGroup)},
+                        //{"resc_name", _info.rescName},
+                        {"data_path", _info.filePath},
+                        {"data_owner_name", _info.dataOwnerName},
+                        {"data_owner_zone", _info.dataOwnerZone},
+                        {"data_is_dirty", std::to_string(_info.replStatus)},
+                        {"data_status", _info.statusString},
+                        {"data_checksum", _info.chksum},
+                        {"data_expiry_ts", _info.dataExpiry},
+                        {"data_map_id", std::to_string(_info.dataMapId)},
+                        {"data_mode", _info.dataMode},
+                        {"r_comment", _info.dataComments},
+                        {"create_ts", _info.dataCreate},
+                        {"modify_ts", _info.dataModify},
+                        //{"resc_hier", _info.rescHier},
+                        {"resc_id", std::to_string(_info.rescId)}
+                    }},
+                    {"after", {
+                        {"data_id", std::to_string(_info.dataId)},
+                        {"coll_id", std::to_string(_info.collId)},
+                        {"data_name", "lol"},
+                        {"data_repl_num", std::to_string(_info.replNum * 2)},
+                        {"data_version", _info.version},
+                        {"data_type_name", _info.dataType},
+                        {"data_size", std::to_string(_info.dataSize)},
+                        //{"resc_group_name", std::to_string(_info.rescGroup)},
+                        //{"resc_name", _info.rescName},
+                        {"data_path", _info.filePath},
+                        {"data_owner_name", _info.dataOwnerName},
+                        {"data_owner_zone", _info.dataOwnerZone},
+                        {"data_is_dirty", std::to_string(_info.replStatus)},
+                        {"data_status", _info.statusString},
+                        {"data_checksum", _info.chksum},
+                        {"data_expiry_ts", _info.dataExpiry},
+                        {"data_map_id", std::to_string(_info.dataMapId)},
+                        {"data_mode", _info.dataMode},
+                        {"r_comment", "hi i'm paul"},
+                        {"create_ts", _info.dataCreate},
+                        {"modify_ts", _info.dataModify},
+                        //{"resc_hier", _info.rescHier},
+                        {"resc_id", std::to_string(_info.rescId)}
+                    }}
+                }
+            })}
+        }.dump();
 
-    log::server::debug("json input:[{}]", input);
+        log::server::debug("json input:[{}]", input);
 
-    bytesBuf_t bb{
-        .len = static_cast<int>(input.length()),
-        .buf = const_cast<char*>(input.c_str())
-    };
+        bytesBuf_t bb{
+            .len = static_cast<int>(input.length()),
+            .buf = const_cast<char*>(input.c_str())
+        };
 
-    return rs_finalize_data_object(&_comm, &bb, nullptr);
-} // finalize_data_object
+        return rs_finalize_data_object(&_comm, &bb, nullptr);
+    } // finalize_data_object
 
-int parallel_transfer_put(
-    rsComm_t *rsComm,
-    dataObjInp_t *dataObjInp,
-    portalOprOut_t **portalOprOut)
-{
+    int parallel_transfer_put(
+        rsComm_t *rsComm,
+        dataObjInp_t *dataObjInp,
+        portalOprOut_t **portalOprOut)
+    {
 
-    // Parallel transfer
-    dataObjInp->openFlags |= O_CREAT | O_RDWR;
-    int l1descInx = rsDataObjOpen(rsComm, dataObjInp);
-    if ( l1descInx < 0 ) {
-        return l1descInx;
-    }
+        // Parallel transfer
+        dataObjInp->openFlags |= O_CREAT | O_RDWR;
+        int l1descInx = rsDataObjOpen(rsComm, dataObjInp);
+        if ( l1descInx < 0 ) {
+            return l1descInx;
+        }
 
-    L1desc[l1descInx].oprType = PUT_OPR;
-    L1desc[l1descInx].dataSize = dataObjInp->dataSize;
+        L1desc[l1descInx].oprType = PUT_OPR;
+        L1desc[l1descInx].dataSize = dataObjInp->dataSize;
 
-    if ( getStructFileType( L1desc[l1descInx].dataObjInfo->specColl ) >= 0 ) { // JMC - backport 4682
-        *portalOprOut = ( portalOprOut_t * ) malloc( sizeof( portalOprOut_t ) );
-        bzero( *portalOprOut,  sizeof( portalOprOut_t ) );
-        ( *portalOprOut )->l1descInx = l1descInx;
-        return l1descInx;
-    }
+        if ( getStructFileType( L1desc[l1descInx].dataObjInfo->specColl ) >= 0 ) { // JMC - backport 4682
+            *portalOprOut = ( portalOprOut_t * ) malloc( sizeof( portalOprOut_t ) );
+            bzero( *portalOprOut,  sizeof( portalOprOut_t ) );
+            ( *portalOprOut )->l1descInx = l1descInx;
+            return l1descInx;
+        }
 
 
-    int status = preProcParaPut( rsComm, l1descInx, portalOprOut );
+        int status = preProcParaPut( rsComm, l1descInx, portalOprOut );
 
-    if ( status < 0 ) {
-        openedDataObjInp_t dataObjCloseInp{};
-        dataObjCloseInp.l1descInx = l1descInx;
-        L1desc[l1descInx].oprStatus = status;
-        rsDataObjClose( rsComm, &dataObjCloseInp );
-        return status;
-    }
+        if ( status < 0 ) {
+            openedDataObjInp_t dataObjCloseInp{};
+            dataObjCloseInp.l1descInx = l1descInx;
+            L1desc[l1descInx].oprStatus = status;
+            rsDataObjClose( rsComm, &dataObjCloseInp );
+            return status;
+        }
 
-    int allFlag = 0;
-    if ( getValByKey( &dataObjInp->condInput, ALL_KW ) != NULL ) {
-        allFlag = 1;
-    }
+        int allFlag = 0;
+        if ( getValByKey( &dataObjInp->condInput, ALL_KW ) != NULL ) {
+            allFlag = 1;
+        }
 
-    dataObjInp_t replDataObjInp{};
-    if ( allFlag == 1 ) {
-        /* need to save dataObjInp. get freed in sendAndRecvBranchMsg */
-        rstrcpy( replDataObjInp.objPath, dataObjInp->objPath, MAX_NAME_LEN );
-        addKeyVal( &replDataObjInp.condInput, UPDATE_REPL_KW, "" );
-        addKeyVal( &replDataObjInp.condInput, ALL_KW, "" );
-    }
-    /* return portalOprOut to the client and wait for the rcOprComplete
-     * call. That is when the parallel I/O is done */
-    int retval = sendAndRecvBranchMsg( rsComm, rsComm->apiInx, status,
-            ( void * ) * portalOprOut, NULL );
-
-    if ( retval < 0 ) {
-        openedDataObjInp_t dataObjCloseInp{};
-        dataObjCloseInp.l1descInx = l1descInx;
-        L1desc[l1descInx].oprStatus = retval;
-        rsDataObjClose( rsComm, &dataObjCloseInp );
+        dataObjInp_t replDataObjInp{};
         if ( allFlag == 1 ) {
-            clearKeyVal( &replDataObjInp.condInput );
+            /* need to save dataObjInp. get freed in sendAndRecvBranchMsg */
+            rstrcpy( replDataObjInp.objPath, dataObjInp->objPath, MAX_NAME_LEN );
+            addKeyVal( &replDataObjInp.condInput, UPDATE_REPL_KW, "" );
+            addKeyVal( &replDataObjInp.condInput, ALL_KW, "" );
         }
-    }
-    else if (1 == allFlag) {
-        transferStat_t *transStat = NULL;
-        status = rsDataObjRepl(rsComm, &replDataObjInp, &transStat);
-        free(transStat);
-        clearKeyVal(&replDataObjInp.condInput);
-        if (status < 0) {
-            const auto err{ERROR(status, "rsDataObjRepl failed")};
-            irods::log(err);
-            return err.code();
+        /* return portalOprOut to the client and wait for the rcOprComplete
+         * call. That is when the parallel I/O is done */
+        int retval = sendAndRecvBranchMsg( rsComm, rsComm->apiInx, status,
+                ( void * ) * portalOprOut, NULL );
+
+        if ( retval < 0 ) {
+            openedDataObjInp_t dataObjCloseInp{};
+            dataObjCloseInp.l1descInx = l1descInx;
+            L1desc[l1descInx].oprStatus = retval;
+            rsDataObjClose( rsComm, &dataObjCloseInp );
+            if ( allFlag == 1 ) {
+                clearKeyVal( &replDataObjInp.condInput );
+            }
         }
-    }
-
-    /* already send the client the status */
-    return SYS_NO_HANDLER_REPLY_MSG;
-} // parallel_transfer_put
-
-int single_buffer_put(
-    rsComm_t* rsComm,
-    dataObjInp_t* dataObjInp,
-    bytesBuf_t* dataObjInpBBuf)
-{
-
-    dataObjInp->openFlags |= O_CREAT | O_RDWR;
-    int l1descInx = rsDataObjOpen(rsComm, dataObjInp);
-    if (l1descInx <= 2) {
-        if ( l1descInx >= 0 ) {
-            rodsLog( LOG_ERROR,
-                    "%s: rsDataObjOpen of %s error, status = %d",
-                    __FUNCTION__,
-                    dataObjInp->objPath,
-                    l1descInx );
-            return SYS_FILE_DESC_OUT_OF_RANGE;
-        }
-        return l1descInx;
-    }
-
-    dataObjInfo_t *myDataObjInfo = L1desc[l1descInx].dataObjInfo;
-    openedDataObjInp_t dataObjWriteInp{};
-    dataObjWriteInp.len = dataObjInpBBuf->len;
-    dataObjWriteInp.l1descInx = l1descInx;
-
-    bytesBuf_t dataObjWriteInpBBuf{};
-    dataObjWriteInpBBuf.buf = dataObjInpBBuf->buf;
-    dataObjWriteInpBBuf.len = dataObjInpBBuf->len;
-    int bytesWritten = rsDataObjWrite(rsComm, &dataObjWriteInp, &dataObjWriteInpBBuf);
-    if ( bytesWritten < 0 ) {
-        rodsLog(LOG_NOTICE,
-                "%s: rsDataObjWrite for %s failed with %d",
-                __FUNCTION__, L1desc[l1descInx].dataObjInfo->filePath, bytesWritten );
-        dataObjInfo_t* data_obj_info = L1desc[l1descInx].dataObjInfo;
-        const int unlink_status = dataObjUnlinkS(rsComm, L1desc[l1descInx].dataObjInp, data_obj_info);
-        if (unlink_status < 0) {
-            irods::log(ERROR(unlink_status,
-                (boost::format("dataObjUnlinkS failed for [%s] with [%d]") %
-                data_obj_info->filePath % unlink_status).str()));
-        }
-    }
-
-    if ( bytesWritten == 0 && myDataObjInfo->dataSize > 0 ) {
-        /* overwrite with 0 len file */
-        L1desc[l1descInx].bytesWritten = 1;
-    }
-    else {
-        L1desc[l1descInx].bytesWritten = bytesWritten;
-    }
-
-    L1desc[l1descInx].dataSize = dataObjInp->dataSize;
-
-    dataObjInfo_t info{};
-    std::memcpy(&info, L1desc[l1descInx].dataObjInfo, sizeof(dataObjInfo_t));
-
-    openedDataObjInp_t dataObjCloseInp{};
-    dataObjCloseInp.l1descInx = l1descInx;
-    L1desc[l1descInx].oprStatus = bytesWritten;
-    L1desc[l1descInx].oprType = PUT_OPR;
-    int status = rsDataObjClose(rsComm, &dataObjCloseInp);
-    if ( status < 0 ) {
-        rodsLog( LOG_DEBUG,
-                "%s: rsDataObjClose of %d error, status = %d",
-                __FUNCTION__, l1descInx, status );
-    }
-
-    if ( bytesWritten < 0 ) {
-        return bytesWritten;
-    }
-
-    if (status < 0) {
-        return status;
-    }
-
-    // TODO: the information from the dataObjInfo is out of date
-    //  - It's too late to get the information from the L1desc, it has been freed at this point
-    //  1. Go to the catalog to get the latest information
-    //  2. Rely on rsDataObjClose or replica_close/finalize to return updated data object information and pass that to data object finalize as "before"
-    finalize_data_object(*rsComm, info);
-
-    if (getValByKey(&dataObjInp->condInput, ALL_KW)) {
-        /* update the rest of copies */
-        transferStat_t *transStat{};
-        status = rsDataObjRepl( rsComm, dataObjInp, &transStat );
-        if (transStat) {
+        else if (1 == allFlag) {
+            transferStat_t *transStat = NULL;
+            status = rsDataObjRepl(rsComm, &replDataObjInp, &transStat);
             free(transStat);
+            clearKeyVal(&replDataObjInp.condInput);
+            if (status < 0) {
+                const auto err{ERROR(status, "rsDataObjRepl failed")};
+                irods::log(err);
+                return err.code();
+            }
         }
-    }
-    if (status >= 0) {
-        status = applyRuleForPostProcForWrite(
-                rsComm, dataObjInpBBuf, dataObjInp->objPath);
+
+        /* already send the client the status */
+        return SYS_NO_HANDLER_REPLY_MSG;
+    } // parallel_transfer_put
+
+    int single_buffer_put(
+        rsComm_t* rsComm,
+        dataObjInp_t* dataObjInp,
+        bytesBuf_t* dataObjInpBBuf)
+    {
+
+        dataObjInp->openFlags |= O_CREAT | O_RDWR;
+        int l1descInx = rsDataObjOpen(rsComm, dataObjInp);
+        if (l1descInx <= 2) {
+            if ( l1descInx >= 0 ) {
+                rodsLog( LOG_ERROR,
+                        "%s: rsDataObjOpen of %s error, status = %d",
+                        __FUNCTION__,
+                        dataObjInp->objPath,
+                        l1descInx );
+                return SYS_FILE_DESC_OUT_OF_RANGE;
+            }
+            return l1descInx;
+        }
+
+        dataObjInfo_t *myDataObjInfo = L1desc[l1descInx].dataObjInfo;
+        openedDataObjInp_t dataObjWriteInp{};
+        dataObjWriteInp.len = dataObjInpBBuf->len;
+        dataObjWriteInp.l1descInx = l1descInx;
+
+        bytesBuf_t dataObjWriteInpBBuf{};
+        dataObjWriteInpBBuf.buf = dataObjInpBBuf->buf;
+        dataObjWriteInpBBuf.len = dataObjInpBBuf->len;
+        int bytesWritten = rsDataObjWrite(rsComm, &dataObjWriteInp, &dataObjWriteInpBBuf);
+        if ( bytesWritten < 0 ) {
+            rodsLog(LOG_NOTICE,
+                    "%s: rsDataObjWrite for %s failed with %d",
+                    __FUNCTION__, L1desc[l1descInx].dataObjInfo->filePath, bytesWritten );
+            dataObjInfo_t* data_obj_info = L1desc[l1descInx].dataObjInfo;
+            const int unlink_status = dataObjUnlinkS(rsComm, L1desc[l1descInx].dataObjInp, data_obj_info);
+            if (unlink_status < 0) {
+                irods::log(ERROR(unlink_status,
+                    (boost::format("dataObjUnlinkS failed for [%s] with [%d]") %
+                    data_obj_info->filePath % unlink_status).str()));
+            }
+        }
+
+        if ( bytesWritten == 0 && myDataObjInfo->dataSize > 0 ) {
+            /* overwrite with 0 len file */
+            L1desc[l1descInx].bytesWritten = 1;
+        }
+        else {
+            L1desc[l1descInx].bytesWritten = bytesWritten;
+        }
+
+        L1desc[l1descInx].dataSize = dataObjInp->dataSize;
+
+        dataObjInfo_t info{};
+        std::memcpy(&info, L1desc[l1descInx].dataObjInfo, sizeof(dataObjInfo_t));
+
+        openedDataObjInp_t dataObjCloseInp{};
+        dataObjCloseInp.l1descInx = l1descInx;
+        L1desc[l1descInx].oprStatus = bytesWritten;
+        L1desc[l1descInx].oprType = PUT_OPR;
+        int status = rsDataObjClose(rsComm, &dataObjCloseInp);
+        if ( status < 0 ) {
+            rodsLog( LOG_DEBUG,
+                    "%s: rsDataObjClose of %d error, status = %d",
+                    __FUNCTION__, l1descInx, status );
+        }
+
+        if ( bytesWritten < 0 ) {
+            return bytesWritten;
+        }
+
+        if (status < 0) {
+            return status;
+        }
+
+        // TODO: the information from the dataObjInfo is out of date
+        //  - It's too late to get the information from the L1desc, it has been freed at this point
+        //  1. Go to the catalog to get the latest information
+        //  2. Rely on rsDataObjClose or replica_close/finalize to return updated data object information and pass that to data object finalize as "before"
+        finalize_data_object(*rsComm, info);
+
+        if (getValByKey(&dataObjInp->condInput, ALL_KW)) {
+            /* update the rest of copies */
+            transferStat_t *transStat{};
+            status = rsDataObjRepl( rsComm, dataObjInp, &transStat );
+            if (transStat) {
+                free(transStat);
+            }
+        }
         if (status >= 0) {
-            status = 0;
+            status = applyRuleForPostProcForWrite(
+                    rsComm, dataObjInpBBuf, dataObjInp->objPath);
+            if (status >= 0) {
+                status = 0;
+            }
         }
-    }
-    return status;
-} // single_buffer_put
+        return status;
+    } // single_buffer_put
 
-void throw_if_force_put_to_new_resource(
-    rsComm_t* comm,
-    dataObjInp_t& data_obj_inp,
-    irods::file_object_ptr file_obj)
-{
-    char* dst_resc_kw   = getValByKey( &data_obj_inp.condInput, DEST_RESC_NAME_KW );
-    char* force_flag_kw = getValByKey( &data_obj_inp.condInput, FORCE_FLAG_KW );
-    if (file_obj->replicas().empty()  ||
-        !dst_resc_kw   ||
-        !force_flag_kw ||
-        strlen( dst_resc_kw ) == 0) {
-        return;
-    }
+    void throw_if_force_put_to_new_resource(
+        rsComm_t* comm,
+        dataObjInp_t& data_obj_inp,
+        irods::file_object_ptr file_obj)
+    {
+        char* dst_resc_kw   = getValByKey( &data_obj_inp.condInput, DEST_RESC_NAME_KW );
+        char* force_flag_kw = getValByKey( &data_obj_inp.condInput, FORCE_FLAG_KW );
+        if (file_obj->replicas().empty()  ||
+            !dst_resc_kw   ||
+            !force_flag_kw ||
+            strlen( dst_resc_kw ) == 0) {
+            return;
+        }
 
-    const auto hier_match{
-        [&dst_resc_kw, &replicas = file_obj->replicas()]()
-        {
-            return std::any_of(replicas.cbegin(), replicas.cend(),
-            [&dst_resc_kw](const auto& r) {
-                return irods::hierarchy_parser{r.resc_hier()}.first_resc() == dst_resc_kw;
-            });
-        }()
-    };
-    if (!hier_match) {
-        THROW(HIERARCHY_ERROR,
-              (boost::format("cannot force put [%s] to a different resource [%s]") %
-               data_obj_inp.objPath % dst_resc_kw).str());
-    }
-} // throw_if_force_put_to_new_resource
+        const auto hier_match{
+            [&dst_resc_kw, &replicas = file_obj->replicas()]()
+            {
+                return std::any_of(replicas.cbegin(), replicas.cend(),
+                [&dst_resc_kw](const auto& r) {
+                    return irods::hierarchy_parser{r.resc_hier()}.first_resc() == dst_resc_kw;
+                });
+            }()
+        };
+        if (!hier_match) {
+            THROW(HIERARCHY_ERROR,
+                  (boost::format("cannot force put [%s] to a different resource [%s]") %
+                   data_obj_inp.objPath % dst_resc_kw).str());
+        }
+    } // throw_if_force_put_to_new_resource
 
 } // anonymous namespace
 
