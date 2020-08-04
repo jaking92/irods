@@ -20,7 +20,6 @@
 #include "modDataObjMeta.h"
 #include "rsDataObjPut.hpp"
 #include "rsDataObjRepl.hpp"
-#include "rsDataObjCreate.hpp"
 #include "rsDataObjClose.hpp"
 #include "rsDataPut.hpp"
 #include "rsRegDataObj.hpp"
@@ -52,6 +51,7 @@ using log   = irods::experimental::log;
 auto finalize_data_object(
     rsComm_t& _comm,
     const int _data_id,
+    const int _repl_num,
     const int _resc_id,
     const int _repl_status) -> int
 {
@@ -61,16 +61,36 @@ auto finalize_data_object(
         {"replicas", json::array({
             {
                 {"before", {
-                    {"data_is_dirty", std::to_string(_repl_status)},
-                    {"resc_id", std::to_string(_resc_id)}
+                    {"resc_id", std::to_string(_resc_id)},
+                    {"data_id", std::to_string(_data_id)},
+                    {"data_repl_num", std::to_string(_repl_num)},
+                    {"data_is_dirty", std::to_string(_repl_status)}
                 }},
                 {"after", {
-                    {"data_is_dirty", std::to_string(_repl_status + 6)},
-                    {"resc_id", std::to_string(_resc_id)}
+                    {"resc_id", std::to_string(_resc_id)},
+                    {"data_id", std::to_string(_data_id)},
+                    {"data_repl_num", std::to_string(_repl_num + 22)},
+                    {"data_is_dirty", std::to_string(_repl_status + 6)}
+                }}
+            },
+            {
+                {"before", {
+                    {"resc_id", std::to_string(_resc_id)},
+                    {"data_id", std::to_string(_data_id)},
+                    {"data_repl_num", std::to_string(_repl_num)},
+                    {"data_is_dirty", std::to_string(_repl_status)}
+                }},
+                {"after", {
+                    {"resc_id", std::to_string(_resc_id)},
+                    {"data_id", std::to_string(_data_id)},
+                    {"data_repl_num", std::to_string(44)},
+                    {"data_is_dirty", std::to_string(_repl_status + 6)}
                 }}
             }
         })}
     }.dump();
+
+    log::server::debug("json input:[{}]", input);
 
     bytesBuf_t bb{
         .len = static_cast<int>(input.length()),
@@ -181,9 +201,10 @@ int single_buffer_put(
     dataObjWriteInp.len = dataObjInpBBuf->len;
     dataObjWriteInp.l1descInx = l1descInx;
 
-    //const auto data_id = myDataObjInfo->dataId;
-    //const auto resc_id = myDataObjInfo->rescId;
-    //const auto repl_status = myDataObjInfo->replStatus;
+    const auto data_id = myDataObjInfo->dataId;
+    const auto repl_num = myDataObjInfo->replNum;
+    const auto resc_id = myDataObjInfo->rescId;
+    const auto repl_status = myDataObjInfo->replStatus;
 
     bytesBuf_t dataObjWriteInpBBuf{};
     dataObjWriteInpBBuf.buf = dataObjInpBBuf->buf;
@@ -231,7 +252,11 @@ int single_buffer_put(
         return status;
     }
 
-    //finalize_data_object(*rsComm, data_id, resc_id, repl_status);
+    // TODO: the information from the dataObjInfo is out of date
+    //  - It's too late to get the information from the L1desc, it has been freed at this point
+    //  1. Go to the catalog to get the latest information
+    //  2. Rely on rsDataObjClose or replica_close/finalize to return updated data object information and pass that to data object finalize as "before"
+    finalize_data_object(*rsComm, data_id, repl_num, resc_id, repl_status);
 
     if (getValByKey(&dataObjInp->condInput, ALL_KW)) {
         /* update the rest of copies */

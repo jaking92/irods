@@ -20,8 +20,8 @@ namespace {
     auto set_replica_state(
         nanodbc::connection& _db_conn,
         std::string_view _data_id,
-        json& _before,
-        json& _after) -> void
+        const json _before,
+        const json _after) -> void
     {
 #if 0
         nanodbc::statement statement{_db_conn};
@@ -50,6 +50,7 @@ namespace {
 
             log::server::debug("binding [{}] to [{}] at [{}]", key, value, i);
 
+            // TODO: don't do this
             statement.bind(i, value.c_str());
         }
 
@@ -62,39 +63,36 @@ namespace {
 #else
         nanodbc::statement statement{_db_conn};
 
+        // clang-format off
         prepare(statement, "update R_DATA_MAIN set"
-                           " data_is_dirty = ? "
-                           " where data_id = ?");
+                           " data_is_dirty = ?"
+                           ",data_repl_num = ?"
+                           " where resc_id = ? and data_id = ?");
 
-        statement.bind(0, _after.at("data_is_dirty").get<std::string>().c_str());
-        statement.bind(1, _data_id.data());
+        const int data_is_dirty  = std::stoi(_after.at("data_is_dirty").get<std::string>());
+        const int data_repl_num  = std::stoi(_after.at("data_repl_num").get<std::string>());
+        const rodsLong_t b_data_id = std::stoll(_data_id.data());
+        const rodsLong_t b_resc_id = std::stoll(_before.at("resc_id").get<std::string>());
+        // clang-format on
 
-        log::server::debug("binding data_is_dirty:[{}] at [0]", _after.at("data_is_dirty").get<std::string>());
-        log::server::debug("binding data_id:[{}] at [1]", _data_id);
+        statement.bind(0, &data_is_dirty);
+        statement.bind(1, &data_repl_num);
+        statement.bind(2, &b_resc_id);
+        statement.bind(3, &b_data_id);
 
-        execute(statement);
+        log::server::debug("binding data_is_dirty:[{}] at [0]", data_is_dirty);
+        log::server::debug("binding data_repl_num:[{}] at [1]", data_repl_num);
+        log::server::debug("binding b_resc_id:[{}] at [2]", b_resc_id);
+        log::server::debug("binding b_data_id:[{}] at [3]", b_data_id);
+
+        try {
+            execute(statement);
+        }
+        catch (const nanodbc::database_error& e) {
+            THROW(SYS_LIBRARY_ERROR, e.what());
+        }
 #endif
     } // set_replica_state
-
-auto map_replica_statuses(json _input) -> std::map<std::string, std::string>
-{
-    std::map<std::string, std::string> m;
-
-    const auto& statuses = _input.at("statuses");
-
-    log::server::debug("number of statuses found: [{}]", statuses.size());
-
-    for (json::size_type i = 0; i < statuses.size(); ++i) {
-        const auto number = statuses[i].at("replica_number").get<std::string>();
-        const auto status = statuses[i].at("replica_status").get<std::string>();
-
-        log::server::debug("adding map[{}] = [{}]", number, status);
-
-        m[number] = status;
-    }
-
-    return m;
-} // map_replica_statuses
 
 } // anonymous namespace
 
@@ -112,6 +110,7 @@ auto rs_finalize_data_object(
 
     try {
         input = json::parse(std::string(static_cast<const char*>(_input->buf), _input->len));
+        log::server::debug("input:[{}]", input.dump());
     }
     catch (const json::parse_error& e) {
         log::api::error({{"log_message", "Failed to parse input into JSON"},
@@ -129,6 +128,7 @@ auto rs_finalize_data_object(
     try {
         data_id = input.at("data_id").get<std::string>();
         replicas = input.at("replicas");
+        //log::server::debug("[replicas:{}]", replicas.dump());
     }
     catch (const std::exception& e) {
         //*_output = to_bytes_buffer(make_error_object(json{}, 0, e.what()).dump());
@@ -149,14 +149,14 @@ auto rs_finalize_data_object(
     {
         try {
             for (auto&& r : replicas) {
-                log::server::debug("setting status for replica before:[{}],after:[{}]", r.at("before").dump(), r.at("after").dump());
+                //log::server::debug("setting status for replica before:{},after:{}", r.at("before").dump(), r.at("after").dump());
                 set_replica_state(db_conn, data_id, r.at("before"), r.at("after"));
             }
 
             _trans.commit();
 
             return 0;
-        }   
+        }
         catch (const irods::exception& e) {
             log::server::error(e.what());
             return e.code();
@@ -164,7 +164,7 @@ auto rs_finalize_data_object(
         catch (const std::exception& e) {
             log::server::error(e.what());
             return SYS_INTERNAL_ERR;
-        }       
+        }
     });
 
 } // rs_finalize_data_object
