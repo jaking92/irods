@@ -354,7 +354,7 @@ namespace irods::experimental::replica
         std::string resc_hier;
 
         {
-            const auto replica_info = get_replica_info(_comm, _p, _rn);
+            const auto replica_info = get_data_object_info(_comm, _p, _rn).front();
             resc_hier = replica_info[detail::genquery_column_index::DATA_RESC_HIER];
         }
 

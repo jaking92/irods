@@ -1,7 +1,6 @@
 #include "catch.hpp"
 
 #include "client_connection.hpp"
-#include "connection_pool.hpp"
 #include "dstream.hpp"
 #include "irods_at_scope_exit.hpp"
 #include "replica.hpp"
@@ -30,9 +29,8 @@ TEST_CASE("replica", "[replica]")
 {
     load_client_api_plugins();
 
-    auto conn_pool = irods::make_connection_pool();
-    auto conn_proxy = conn_pool->get_connection();
-    rcComm_t& conn = conn_proxy;
+    irods::experimental::client_connection comm;
+    RcComm& conn = static_cast<RcComm&>(comm);
 
     rodsEnv env;
     _getRodsEnv(env);
