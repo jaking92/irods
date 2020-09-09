@@ -28,8 +28,8 @@ TEST_CASE("test_lib", "[lib]")
     dataObjInfo_t r0{};
     r0.dataId = DATA_ID_1;
     r0.collId = COLL_ID_1;
-    std::strncpy(r0.objPath,  LOGICAL_PATH_1.data(), sizeof(r0.objPath));
-    std::strncpy(r0.rescName, RESC_1.data(),         sizeof(r0.rescName));
+    std::snprintf(r0.objPath, sizeof(r0.objPath), "%s", LOGICAL_PATH_1.data());
+    std::snprintf(r0.rescName, sizeof(r0.rescName), "%s", RESC_1.data());
 
     SECTION("replica_proxy")
     {
@@ -72,8 +72,8 @@ TEST_CASE("test_lib", "[lib]")
         dataObjInfo_t r1{};
         r1.dataId = DATA_ID_1;
         r1.collId = COLL_ID_1;
-        std::strncpy(r1.objPath,  LOGICAL_PATH_1.data(), sizeof(r1.objPath));
-        std::strncpy(r1.rescName, RESC_2.data(),         sizeof(r1.rescName));
+        std::snprintf(r1.objPath, sizeof(r1.objPath), "%s", LOGICAL_PATH_1.data());
+        std::snprintf(r1.rescName, sizeof(r1.rescName), "%s", RESC_2.data());
 
         r0.next = &r1;
 
@@ -145,16 +145,21 @@ TEST_CASE("test_factory_and_lifetime_manager", "[lib][lifetime_manager]")
     {
         dataObjInfo_t* doi = rp.get();
 
-        REQUIRE(nullptr != doi);
-        REQUIRE(DATA_ID_1      == doi->dataId);
-        REQUIRE(COLL_ID_1      == doi->collId);
-        REQUIRE(LOGICAL_PATH_1 == doi->objPath);
-        REQUIRE(RESC_1         == doi->rescName);
+        if (!doi) {
+            // This will fail intentionally
+            REQUIRE(nullptr != doi);
+        }
+        else {
+            REQUIRE(DATA_ID_1      == doi->dataId);
+            REQUIRE(COLL_ID_1      == doi->collId);
+            REQUIRE(LOGICAL_PATH_1 == doi->objPath);
+            REQUIRE(RESC_1         == doi->rescName);
 
-        // modify struct and see changes in class
-        doi->dataId = DATA_ID_2;
-        REQUIRE(DATA_ID_2 == rp.data_id());
-        REQUIRE(DATA_ID_2 == doi->dataId);
+            // modify struct and see changes in class
+            doi->dataId = DATA_ID_2;
+            REQUIRE(DATA_ID_2 == rp.data_id());
+            REQUIRE(DATA_ID_2 == doi->dataId);
+        }
     }
 }
 

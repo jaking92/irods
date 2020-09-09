@@ -247,7 +247,7 @@ namespace irods::experimental::replica
 
         cond_input[REPL_NUM_KW] = std::to_string(_rn);
 
-        std::strncpy(input.objPath, _p.c_str(), std::strlen(_p.c_str()));
+        std::snprintf(input.objPath, sizeof(input.objPath), "%s", _p.c_str());
 
         if (verification_calculation::always == _calculation) {
             cond_input[FORCE_CHKSUM_KW] = "";
@@ -323,7 +323,7 @@ namespace irods::experimental::replica
         new_time << std::setfill('0') << std::setw(11) << std::to_string(seconds.count());
 
         dataObjInfo_t info{};
-        std::strncpy(info.objPath, _p.c_str(), std::strlen(_p.c_str()));
+        std::snprintf(info.objPath, sizeof(info.objPath), "%s", _p.c_str());
 
         keyValPair_t kvp{};
         auto reg_params = make_key_value_proxy(kvp);
@@ -347,7 +347,6 @@ namespace irods::experimental::replica
             THROW(ec, fmt::format("cannot set mtime for [{}] (replica [{}])", _p.c_str(), _rn));
         }
     } // last_write_time
-
 } // namespace irods::experimental::replica
 
 #endif // #ifndef IRODS_REPLICA_HPP

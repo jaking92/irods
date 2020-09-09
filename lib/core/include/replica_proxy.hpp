@@ -367,7 +367,7 @@ namespace irods::experimental::replica
                 THROW(USER_STRLEN_TOOLONG, "source length exceeds destination buffer length");
             }
             std::memset(_dst, 0, _dst_size);
-            std::strncpy(_dst, _src.data(), _dst_size);
+            std::snprintf(_dst, _dst_size, "%s", _src.data());
         } // set_string_property
 
     }; // class replica_proxy
