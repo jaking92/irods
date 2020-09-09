@@ -21,7 +21,7 @@ TEST_CASE("replica", "[replica]")
     load_client_api_plugins();
 
     auto conn_pool = irods::make_connection_pool();
-    auto conn = static_cast<rcComm_t>(conn_pool->get_connection());
+    auto conn = static_cast<rcComm_t&>(conn_pool->get_connection());
 
     rodsEnv env;
     _getRodsEnv(env);

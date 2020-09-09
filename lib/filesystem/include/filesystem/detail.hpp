@@ -12,7 +12,6 @@
 
 namespace irods::experimental::filesystem::detail
 {
-
     inline auto make_error_code(int _ec) noexcept -> std::error_code
     {
         return {_ec, std::system_category()};
@@ -37,7 +36,6 @@ namespace irods::experimental::filesystem::detail
             throw irods::experimental::filesystem::filesystem_error{"empty path", make_error_code(SYS_INVALID_INPUT_PARAM)};
         }
     }
-
 } // irods::experimental::filesystem::detail
 
 #endif // IRODS_FILESYSTEM_DETAIL_HPP

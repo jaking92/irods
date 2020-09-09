@@ -110,14 +110,12 @@ TEST_CASE("test_lib", "[lib]")
         REQUIRE(DATA_ID_2 == r0.dataId);
         REQUIRE(DATA_ID_2 == r1.dataId);
 
-        o.collection_id(COLL_ID_2);
+        o.rename(COLL_ID_2, LOGICAL_PATH_2);
         REQUIRE(COLL_ID_2 == o.collection_id());
         REQUIRE(COLL_ID_2 == o_r0.collection_id());
         REQUIRE(COLL_ID_2 == o_r1.collection_id());
         REQUIRE(COLL_ID_2 == r0.collId);
         REQUIRE(COLL_ID_2 == r1.collId);
-
-        o.logical_path(LOGICAL_PATH_2);
         REQUIRE(LOGICAL_PATH_2 == o.logical_path());
         REQUIRE(LOGICAL_PATH_2 == o_r0.logical_path());
         REQUIRE(LOGICAL_PATH_2 == o_r1.logical_path());

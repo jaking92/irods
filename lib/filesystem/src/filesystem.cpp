@@ -134,7 +134,7 @@ namespace irods::experimental::filesystem::NAMESPACE_IMPL
 
                 irods::experimental::query_builder qb;
 
-                if (const auto zone = get_zone_name(_p); zone) {
+                if (const auto zone = zone_name(_p); zone) {
                     qb.zone_hint(*zone);
                 }
 
@@ -145,7 +145,7 @@ namespace irods::experimental::filesystem::NAMESPACE_IMPL
             else if (COLL_OBJ_T == _s.type) {
                 irods::experimental::query_builder qb;
 
-                if (const auto zone = get_zone_name(_p); zone) {
+                if (const auto zone = zone_name(_p); zone) {
                     qb.zone_hint(*zone);
                 }
 
@@ -564,7 +564,7 @@ namespace irods::experimental::filesystem::NAMESPACE_IMPL
             return is_collection_empty(_comm, _p);
         }
 
-        throw filesystem_error{"cannot check emptiness: object type unsupported", _p, make_error_code(CAT_NOT_A_DATAOBJ_AND_NOT_A_COLLECTION)};
+        throw filesystem_error{"cannot check emptiness: unknown object type", _p, make_error_code(CAT_NOT_A_DATAOBJ_AND_NOT_A_COLLECTION)};
     }
 
     auto is_other(object_status _s) noexcept -> bool
@@ -650,7 +650,7 @@ namespace irods::experimental::filesystem::NAMESPACE_IMPL
 
         irods::experimental::query_builder qb;
 
-        if (const auto zone = get_zone_name(_p); zone) {
+        if (const auto zone = zone_name(_p); zone) {
             qb.zone_hint(*zone);
         }
 
@@ -689,7 +689,7 @@ namespace irods::experimental::filesystem::NAMESPACE_IMPL
 
         irods::experimental::query_builder qb;
 
-        if (const auto zone = get_zone_name(_p); zone) {
+        if (const auto zone = zone_name(_p); zone) {
             qb.zone_hint(*zone);
         }
 
@@ -925,7 +925,7 @@ namespace irods::experimental::filesystem::NAMESPACE_IMPL
 
         irods::experimental::query_builder qb;
 
-        if (const auto zone = get_zone_name(_p); zone) {
+        if (const auto zone = zone_name(_p); zone) {
             qb.zone_hint(*zone);
         }
 

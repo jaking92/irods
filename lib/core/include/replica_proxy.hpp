@@ -42,83 +42,83 @@ namespace irods::experimental::replica
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto logical_path()     const -> std::string_view { return doi_->objPath; }
+        auto logical_path()     const noexcept -> std::string_view { return doi_->objPath; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto resource()         const -> std::string_view { return doi_->rescName; }
+        auto resource()         const noexcept -> std::string_view { return doi_->rescName; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto hierarchy()        const -> std::string_view { return doi_->rescHier; }
+        auto hierarchy()        const noexcept -> std::string_view { return doi_->rescHier; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto type()             const -> std::string_view { return doi_->dataType; }
+        auto type()             const noexcept -> std::string_view { return doi_->dataType; }
 
         /// \returns rodsLong_t
         /// \since 4.2.9
-        auto size()             const -> rodsLong_t { return doi_->dataSize; }
+        auto size()             const noexcept -> rodsLong_t { return doi_->dataSize; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto checksum()         const -> std::string_view { return doi_->chksum; }
+        auto checksum()         const noexcept -> std::string_view { return doi_->chksum; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto version()          const -> std::string_view { return doi_->version; }
+        auto version()          const noexcept -> std::string_view { return doi_->version; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto physical_path()    const -> std::string_view { return doi_->filePath; }
+        auto physical_path()    const noexcept -> std::string_view { return doi_->filePath; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto owner_user_name()  const -> std::string_view { return doi_->dataOwnerName; }
+        auto owner_user_name()  const noexcept -> std::string_view { return doi_->dataOwnerName; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto owner_zone_name()  const -> std::string_view { return doi_->dataOwnerZone; }
+        auto owner_zone_name()  const noexcept -> std::string_view { return doi_->dataOwnerZone; }
 
         /// \returns int
         /// \since 4.2.9
-        auto replica_number()   const -> int { return doi_->replNum; }
+        auto replica_number()   const noexcept -> int { return doi_->replNum; }
 
         /// \returns int
         /// \since 4.2.9
-        auto replica_status()   const -> int { return doi_->replStatus; }
+        auto replica_status()   const noexcept -> int { return doi_->replStatus; }
 
         /// \returns rodsLong_t
         /// \since 4.2.9
-        auto data_id()          const -> rodsLong_t { return doi_->dataId; }
+        auto data_id()          const noexcept -> rodsLong_t { return doi_->dataId; }
 
         /// \returns rodsLong_t
         /// \since 4.2.9
-        auto collection_id()    const -> rodsLong_t { return doi_->collId; }
+        auto collection_id()    const noexcept -> rodsLong_t { return doi_->collId; }
 
         /// \returns rodsLong_t
         /// \since 4.2.9
-        auto resource_id()      const -> rodsLong_t { return doi_->rescId; }
+        auto resource_id()      const noexcept -> rodsLong_t { return doi_->rescId; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto comments()         const -> std::string_view { return doi_->dataComments; }
+        auto comments()         const noexcept -> std::string_view { return doi_->dataComments; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto ctime()            const -> std::string_view { return doi_->dataCreate; }
+        auto ctime()            const noexcept -> std::string_view { return doi_->dataCreate; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto mtime()            const -> std::string_view { return doi_->dataModify; }
+        auto mtime()            const noexcept -> std::string_view { return doi_->dataModify; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto in_pdmo()          const -> std::string_view { return doi_->in_pdmo; }
+        auto in_pdmo()          const noexcept -> std::string_view { return doi_->in_pdmo; }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto status()           const -> std::string_view { return doi_->statusString; }
+        auto status()           const noexcept -> std::string_view { return doi_->statusString; }
 
         /// \returns key_value_proxy
         /// \retval condInput for the dataObjInfo_t node as a key_value_proxy
@@ -131,63 +131,19 @@ namespace irods::experimental::replica
         /// \returns const specColl_t*
         /// \retval specColl pointer for the dataObjInfo_t node
         /// \since 4.2.9
-        auto special_collection_info() const -> const specColl_t*
+        auto special_collection_info() const noexcept -> const specColl_t*
         {
             return doi_->specColl;
         }
 
         /// \returns std::string_view
         /// \since 4.2.9
-        auto sub_path()         const -> std::string_view { return doi_->subPath; }
-
-        /// \returns std::string_view
-        /// \since 4.2.9
-        auto expiry_ts()        const -> std::string_view { return doi_->dataExpiry; }
-
-        /// \returns int
-        /// \since 4.2.9
-        auto map_id()           const -> int { return doi_->dataMapId; }
-
-        /// \returns std::string_view
-        /// \since 4.2.9
-        auto mode()             const -> std::string_view { return doi_->dataMode; }
-
-        /// \returns std::string_view
-        /// \since 4.2.9
-        auto access_str()       const -> std::string_view { return doi_->dataAccess; }
-
-        /// \returns int
-        /// \since 4.2.9
-        auto access_index()     const -> int  { return doi_->dataAccessInx; }
-
-        /// \returns int
-        /// \since 4.2.9
-        auto reg_uid()          const -> int { return doi_->regUid; }
-
-        /// \returns std::string_view
-        /// \since 4.2.9
-        auto backup_resource()  const -> std::string_view { return doi_->backupRescName; }
-
-        /// \returns int
-        /// \since 4.2.9
-        auto flags()            const -> int { return doi_->flags; }
-
-        /// \returns int
-        /// \since 4.2.9
-        auto write_flag()       const -> int  { return doi_->writeFlag; }
-
-        /// \returns int
-        /// \since 4.2.9
-        auto other_flags()      const -> int { return doi_->otherFlags; }
-
-        /// \returns std::string_view
-        /// \since 4.2.9
-        auto destination_resource() const -> std::string_view { return doi_->destRescName; }
+        auto mode()             const noexcept -> std::string_view { return doi_->dataMode; }
 
         /// \returns const doi_pointer_type
         /// \retval Pointer to the underlying struct
         /// \since 4.2.9
-        auto get() const -> const doi_pointer_type { return doi_; }
+        auto get() const noexcept -> const doi_pointer_type { return doi_; }
 
         // mutators
 
@@ -195,25 +151,37 @@ namespace irods::experimental::replica
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto logical_path(std::string_view _lp)     -> void { set_string_property(doi_->objPath, _lp, sizeof(doi_->objPath)); }
+        auto logical_path(std::string_view _lp) -> void
+        {
+            set_string_property(doi_->objPath, _lp, sizeof(doi_->objPath));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto resource(std::string_view _r)          -> void { set_string_property(doi_->rescName, _r, sizeof(doi_->rescName)); }
+        auto resource(std::string_view _r) -> void
+        {
+            set_string_property(doi_->rescName, _r, sizeof(doi_->rescName));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto hierarchy(std::string_view _h)         -> void { set_string_property(doi_->rescHier, _h, sizeof(doi_->rescHier)); }
+        auto hierarchy(std::string_view _h) -> void
+        {
+            set_string_property(doi_->rescHier, _h, sizeof(doi_->rescHier));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto type(std::string_view _t)              -> void { set_string_property(doi_->dataType, _t, sizeof(doi_->dataType)); }
+        auto type(std::string_view _t) -> void
+        {
+            set_string_property(doi_->dataType, _t, sizeof(doi_->dataType));
+        }
 
         /// \since 4.2.9
         template<
@@ -225,31 +193,46 @@ namespace irods::experimental::replica
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto checksum(std::string_view _cs)         -> void { set_string_property(doi_->chksum, _cs, sizeof(doi_->chksum)); }
+        auto checksum(std::string_view _cs) -> void
+        {
+            set_string_property(doi_->chksum, _cs, sizeof(doi_->chksum));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto version(std::string_view _v)           -> void { set_string_property(doi_->version, _v, sizeof(doi_->version)); }
+        auto version(std::string_view _v) -> void
+        {
+            set_string_property(doi_->version, _v, sizeof(doi_->version));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto physical_path(std::string_view _p)     -> void { set_string_property(doi_->filePath, _p, sizeof(doi_->filePath)); }
+        auto physical_path(std::string_view _p) -> void
+        {
+            set_string_property(doi_->filePath, _p, sizeof(doi_->filePath));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto owner_user_name(std::string_view _oun) -> void { set_string_property(doi_->dataOwnerName, _oun, sizeof(doi_->ownerZone)); }
+        auto owner_user_name(std::string_view _oun) -> void
+        {
+            set_string_property(doi_->dataOwnerName, _oun, sizeof(doi_->ownerZone));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto owner_zone_name(std::string_view _ozn) -> void { set_string_property(doi_->dataOwnerZone, _ozn, sizeof(doi_->ownerZone)); }
+        auto owner_zone_name(std::string_view _ozn) -> void
+        {
+            set_string_property(doi_->dataOwnerZone, _ozn, sizeof(doi_->ownerZone));
+        }
 
         /// \since 4.2.9
         template<
@@ -285,31 +268,46 @@ namespace irods::experimental::replica
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto comments(std::string_view _c)          -> void { set_string_property(doi_->dataComments, _c, sizeof(doi_->dataComments)); }
+        auto comments(std::string_view _c) -> void
+        {
+            set_string_property(doi_->dataComments, _c, sizeof(doi_->dataComments));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto ctime(std::string_view _ct)            -> void { set_string_property(doi_->dataCreate, _ct, sizeof(doi_->dataCreate)); }
+        auto ctime(std::string_view _ct) -> void
+        {
+            set_string_property(doi_->dataCreate, _ct, sizeof(doi_->dataCreate));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto mtime(std::string_view _mt)            -> void { set_string_property(doi_->dataModify, _mt, sizeof(doi_->dataModify)); }
+        auto mtime(std::string_view _mt) -> void
+        {
+            set_string_property(doi_->dataModify, _mt, sizeof(doi_->dataModify));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto in_pdmo(std::string_view _p)           -> void { set_string_property(doi_->in_pdmo, _p, sizeof(doi_->in_pdmo)); }
+        auto in_pdmo(std::string_view _p) -> void
+        {
+            set_string_property(doi_->in_pdmo, _p, sizeof(doi_->in_pdmo));
+        }
 
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto status(std::string_view _s)            -> void { set_string_property(doi_->statusString, _s, sizeof(doi_->statusString)); }
+        auto status(std::string_view _s) -> void
+        {
+            set_string_property(doi_->statusString, _s, sizeof(doi_->statusString));
+        }
 
         /// \returns key_value_proxy
         /// \retval condInput for the dataObjInfo_t node as a key_value_proxy
@@ -337,90 +335,9 @@ namespace irods::experimental::replica
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto sub_path(std::string_view _p) -> void
-        {
-            set_string_property(doi_->subPath, _p, sizeof(doi_->subPath));
-        }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto expiry_ts(std::string_view _et) -> void
-        {
-            set_string_property(doi_->dataExpiry, _et, sizeof(doi_->dataExpiry));
-        }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto map_id(const int _id)                  -> void { doi_->dataMapId = _id; }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
         auto mode(std::string_view _m)              -> void
         {
             set_string_property(doi_->dataMode, _m, sizeof(doi_->dataMode));
-        }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto access_str(std::string_view _a) -> void
-        {
-            set_string_property(doi_->dataAccess, _a, sizeof(doi_->dataAccess));
-        }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto access_index(std::string_view _a)      -> void { doi_->dataAccessInx = _a; }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto reg_uid(const int _uid)                -> void { doi_->regUid = _uid; }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto backup_resource(std::string_view _brn) -> void
-        {
-            set_string_property(doi_->backupRescName, _brn, sizeof(doi_->backupRescName));
-        }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto flags(const int _f)                    -> void { doi_->flags = _f; }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto write_flag(const int _f)               -> void { doi_->writeFlag = _f; }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto other_flags(const int _f)              -> void { doi_->otherFlags = _f; }
-
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto destination_resource(std::string_view _drn) -> void
-        {
-            set_string_property(doi_->destRescName, _drn, sizeof(doi_->destRescName));
         }
 
         /// \returns doi_pointer_type
@@ -441,7 +358,7 @@ namespace irods::experimental::replica
         /// \param[in] _src - Source string
         /// \param[in] _dst_size - Destination buffer size
         /// \since 4.2.9
-        static auto set_string_property(
+        inline auto set_string_property(
             char* _dst,
             std::string_view _src,
             const std::size_t _dst_size) -> void

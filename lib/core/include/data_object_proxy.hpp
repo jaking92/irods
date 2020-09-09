@@ -38,8 +38,8 @@ namespace irods::experimental::data_object
         /// \brief Constructs proxy using an existing doi_type
         /// \since 4.2.9
         explicit data_object_proxy(doi_type& _doi)
-            : doi_{&_doi}
-            , r_{fill_replica_list(_doi)}
+            : data_obj_info_{&_doi}
+            , replica_list_{fill_replica_list(_doi)}
         {
         }
 
@@ -48,42 +48,42 @@ namespace irods::experimental::data_object
         /// \returns rodsLong_t
         /// \retval id of the data object from the catalog
         /// \since 4.2.9
-        auto data_id() const -> rodsLong_t { return doi_->dataId; }
+        auto data_id() const noexcept -> rodsLong_t { return data_obj_info_->dataId; }
 
         /// \returns rodsLong_t
         /// \retval id of the collection containing this data object
         /// \since 4.2.9
-        auto collection_id() const -> rodsLong_t { return doi_->collId; }
+        auto collection_id() const noexcept -> rodsLong_t { return data_obj_info_->collId; }
 
         /// \returns std::string_view
         /// \retval Logical path of the data object
         /// \since 4.2.9
-        auto logical_path() const -> std::string_view { return doi_->objPath; }
+        auto logical_path() const noexcept -> std::string_view { return data_obj_info_->objPath; }
 
         /// \returns std::string_view
         /// \retval Owner user name of the data object
         /// \since 4.2.9
-        auto owner_user_name() const -> std::string_view { return doi_->dataOwnerName; }
+        auto owner_user_name() const noexcept -> std::string_view { return data_obj_info_->dataOwnerName; }
 
         /// \returns std::string_view
         /// \retval Owner zone name of the data object
         /// \since 4.2.9
-        auto owner_user_zone() const -> std::string_view { return doi_->dataOwnerZone; }
+        auto owner_user_zone() const noexcept -> std::string_view { return data_obj_info_->dataOwnerZone; }
 
         /// \returns size_type
         /// \retval Number of replicas for this data object
         /// \since 4.2.9
-        auto replica_count() const -> size_type { return r_.size(); }
+        auto replica_count() const noexcept -> size_type { return replica_list_.size(); }
 
         /// \returns const replica_list&
         /// \retval Reference to the list of replica_proxy objects
         /// \since 4.2.9
-        auto replicas() const -> const replica_list& { return r_; }
+        auto replicas() const noexcept -> const replica_list& { return replica_list_; }
 
         /// \returns const doi_pointer_type
         /// \retval Pointer to the underlying struct
         /// \since 4.2.9
-        auto get() const -> const doi_pointer_type { return doi_; }
+        auto get() const noexcept -> const doi_pointer_type { return data_obj_info_; }
 
         // mutators
 
@@ -96,38 +96,27 @@ namespace irods::experimental::data_object
             typename = std::enable_if_t<!std::is_const_v<P>>>
         auto data_id(const rodsLong_t _did) -> void
         {
-            for (auto& r : r_) {
+            for (auto& r : replica_list_) {
                 r.data_id(_did);
             }
         }
 
-        /// \brief Set the collection id for the data object (i.e. all replicas)
-        /// \param[in] _cid - New value for collection id
+        /// \brief Set the logical path and collection id for the data object (i.e. all replicas)
+        ///
+        /// \param[in] _collection_id - New value for collection id
+        /// \param[in] _logical_path - New value for logical path
+        ///
         /// \returns void
+        ///
         /// \since 4.2.9
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto collection_id(const rodsLong_t _cid) -> void 
+        auto rename(const rodsLong_t _collection_id, std::string_view _logical_path) -> void
         {
-            // TODO: should this set the logical path too?
-            for (auto& r : r_) {
-                r.collection_id(_cid);
-            }
-        }
-
-        /// \brief Set the logical path for the data object (i.e. all replicas)
-        /// \param[in] _lp - New value for logical path
-        /// \returns void
-        /// \since 4.2.9
-        template<
-            typename P = doi_type,
-            typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto logical_path(std::string_view _lp) -> void
-        {
-            // TODO: should this set the collId too?
-            for (auto& r : r_) {
-                r.logical_path(_lp);
+            for (auto& r : replica_list_) {
+                r.collection_id(_collection_id);
+                r.logical_path(_logical_path);
             }
         }
 
@@ -140,7 +129,7 @@ namespace irods::experimental::data_object
             typename = std::enable_if_t<!std::is_const_v<P>>>
         auto owner_user_name(std::string_view _un) -> void
         {
-            for (auto& r : r_) {
+            for (auto& r : replica_list_) {
                 r.owner_user_name(_un);
             }
         }
@@ -154,7 +143,7 @@ namespace irods::experimental::data_object
             typename = std::enable_if_t<!std::is_const_v<P>>>
         auto owner_zone_name(std::string_view _zn) -> void
         {
-            for (auto& r : r_) {
+            for (auto& r : replica_list_) {
                 r.owner_zone_name(_zn);
             }
         }
@@ -165,7 +154,7 @@ namespace irods::experimental::data_object
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto replicas() -> replica_list& { return r_; }
+        auto replicas() noexcept -> replica_list& { return replica_list_; }
 
         /// \brief Get pointer to the underlying dataObjInfo_t struct
         /// \returns doi_pointer_type
@@ -173,26 +162,25 @@ namespace irods::experimental::data_object
         template<
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
-        auto get() -> doi_pointer_type { return doi_; }
+        auto get() noexcept -> doi_pointer_type { return data_obj_info_; }
 
     private:
         /// \brief Pointer to underlying doi_type
         /// \since 4.2.9
-        doi_pointer_type doi_;
+        doi_pointer_type data_obj_info_;
 
         /// \brief List of objects representing physical replicas
         /// \since 4.2.9
-        replica_list r_;
+        replica_list replica_list_;
 
         /// \brief Generates replica proxy objects from doi_type's linked list and stores them in a list
         /// \since 4.2.9
-        static auto fill_replica_list(doi_type& _doi) -> replica_list
+        inline auto fill_replica_list(doi_type& _doi) -> replica_list
         {
             replica_list r;
             for (doi_type* d = &_doi; d; d = d->next) {
                 r.push_back(replica::replica_proxy{*d});
             }
-            // TODO: do we allow empty replica list?
             return r;
         } // fill_replica_list
     }; // data_object_proxy

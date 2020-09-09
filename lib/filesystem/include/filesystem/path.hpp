@@ -385,7 +385,7 @@ namespace irods::experimental::filesystem
 
     auto hash_value(const path& _p) noexcept -> std::size_t;
 
-    auto get_zone_name(const path& _p) -> std::optional<std::string>;
+    auto zone_name(const path& _p) -> std::optional<std::string>;
 } // namespace irods::experimental::filesystem
 
 #endif // IRODS_FILESYSTEM_PATH_HPP

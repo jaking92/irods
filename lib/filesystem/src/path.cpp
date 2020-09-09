@@ -439,7 +439,7 @@ namespace irods::experimental::filesystem
         return boost::hash_range(std::begin(pstr), std::end(pstr));
     }
 
-    auto get_zone_name(const path& _p) -> std::optional<std::string>
+    auto zone_name(const path& _p) -> std::optional<std::string>
     {
         using difference_type = path::iterator::difference_type;
 
@@ -451,6 +451,5 @@ namespace irods::experimental::filesystem
         
         return std::nullopt;
     }
-
 } // namespace irods::experimental::filesystem
 

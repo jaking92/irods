@@ -31,6 +31,7 @@
 
 #define IRODS_FILESYSTEM_ENABLE_SERVER_SIDE_API
 #include "filesystem.hpp"
+#define IRODS_REPLICA_ENABLE_SERVER_SIDE_API
 #include "replica.hpp"
 
 #include "fmt/format.h"
