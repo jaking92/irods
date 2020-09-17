@@ -22,12 +22,19 @@
 #include <chrono>
 #include <iomanip>
 #include <string_view>
+#include <variant>
 
 namespace irods::experimental::replica
 {
     using replica_number_type = int;
 
+    enum class replica_number
+    {
+        all
+    };
+
     /// \brief Describes whether the catalog should be updated when calculating a replica's checksum
+    ///
     /// \since 4.2.9
     enum class verification_calculation
     {
@@ -38,6 +45,7 @@ namespace irods::experimental::replica
     namespace detail
     {
         /// \brief GenQuery columns which represent a replica
+        ///
         /// \since 4.2.9
         enum genquery_column_index : std::size_t
         {
@@ -62,7 +70,8 @@ namespace irods::experimental::replica
             DATA_MODIFY_TIME,
             DATA_MODE,
             DATA_RESC_HIER,
-            DATA_RESC_ID
+            DATA_RESC_ID,
+            COLL_NAME
         };
 
         /// \param[in] _comm connection object
@@ -93,11 +102,14 @@ namespace irods::experimental::replica
         } // throw_if_replica_number_is_invalid
 
         /// \brief Enforce valid path and replica number for replica operation
+        ///
         /// \param[in] _comm connection object
         /// \param[in] _p path to inspect
         /// \param[in] _rn replica number to inspect
+        ///
         /// \throws filesystem_error if the path is empty or too long
         /// \throws irods::exception if the path does not refer to a data object or replica number is invalid
+        ///
         /// \since 4.2.9
         template<typename rxComm>
         inline auto throw_if_replica_input_is_invalid(
@@ -113,10 +125,8 @@ namespace irods::experimental::replica
 
             throw_if_replica_number_is_invalid(_rn);
         } // throw_if_replica_input_is_invalid
-
     } // namespace detail
 
-    // TODO: this may disappear in the future
     /// \brief Gets a row from r_data_main using irods::query
     ///
     /// \param[in] _comm connection object
@@ -130,10 +140,10 @@ namespace irods::experimental::replica
     ///
     /// \since 4.2.9
     template<typename rxComm>
-    auto get_replica_info(
+    auto get_data_object_info(
         rxComm& _comm,
         const irods::experimental::filesystem::path& _p,
-        const replica_number_type _rn) -> std::vector<std::string>
+        const std::variant<replica_number_type, replica_number>& _rn = replica_number::all) -> std::vector<std::vector<std::string>>
     {
         query_builder qb;
 
@@ -141,7 +151,7 @@ namespace irods::experimental::replica
             qb.zone_hint(*zone);
         }
 
-        const std::string qstr = fmt::format(
+        std::string qstr = fmt::format(
             "SELECT "
             "DATA_ID, "
             "DATA_COLL_ID, "
@@ -164,16 +174,32 @@ namespace irods::experimental::replica
             "DATA_MODIFY_TIME, "
             "DATA_MODE, "
             "DATA_RESC_HIER, "
-            "DATA_RESC_ID "
-            "WHERE DATA_NAME = '{}' AND COLL_NAME = '{}' AND DATA_REPL_NUM = '{}'",
-            _p.object_name().c_str(), _p.parent_path().c_str(), _rn);
+            "DATA_RESC_ID, "
+            "COLL_NAME"
+            " WHERE DATA_NAME = '{}' AND COLL_NAME = '{}'",
+            _p.object_name().c_str(), _p.parent_path().c_str());
 
-        const auto q = qb.build<rxComm>(_comm, qstr);
+        if (const auto& n = std::get_if<replica_number_type>(&_rn); n) {
+            detail::throw_if_replica_input_is_invalid(_comm, _p, *n);
+
+            qstr += fmt::format(" AND DATA_REPL_NUM = '{}'", *n);
+        }
+        else if (const auto& e = std::get_if<replica_number>(&_rn); !e) {
+            THROW(SYS_INVALID_INPUT_PARAM, "invalid replica number input");
+        }
+
+        auto q = qb.build<rxComm>(_comm, qstr);
         if (q.size() <= 0) {
             THROW(CAT_NO_ROWS_FOUND, "no replica information found");
         }
-        return q.front();
-    } // get_replica_info
+
+        std::vector<std::vector<std::string>> output;
+        for (auto&& result : q) {
+            output.push_back(result);
+        }
+
+        return output;
+    } // get_data_object_info
 
     /// \param[in] _comm connection object
     /// \param[in] _p logical path
@@ -194,7 +220,7 @@ namespace irods::experimental::replica
     {
         detail::throw_if_replica_input_is_invalid(_comm, _p, _rn);
 
-        const auto result = get_replica_info(_comm, _p, _rn);
+        const auto result = get_data_object_info(_comm, _p, _rn).front();
 
         return static_cast<std::uintmax_t>(std::stoull(result[detail::genquery_column_index::DATA_SIZE]));
     } // replica_size
@@ -295,7 +321,7 @@ namespace irods::experimental::replica
 
         detail::throw_if_replica_input_is_invalid(_comm, _p, _rn);
 
-        const auto result = get_replica_info(_comm, _p, _rn);
+        const auto result = get_data_object_info(_comm, _p, _rn).front();
         const auto& mtime = result[detail::genquery_column_index::DATA_MODIFY_TIME];
 
         return object_time_type{std::chrono::seconds{std::stoull(mtime)}};
