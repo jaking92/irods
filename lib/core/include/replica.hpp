@@ -33,7 +33,6 @@ namespace irods::experimental::replica
 
     using replica_number_type = int;
     using leaf_resource_name_type = std::string_view;
-
     using replica_input_type = std::variant<replica_select_type, replica_number_type, leaf_resource_name_type>;
 
     /// \brief Describes whether the catalog should be updated when calculating a replica's checksum
@@ -184,7 +183,11 @@ namespace irods::experimental::replica
 
             qstr += fmt::format(" AND DATA_REPL_NUM = '{}'", *n);
         }
-        // TODO: add leaf_resource_name_type case
+        else if (const auto& r = std::get_if<leaf_resource_name_type>(&_replica_input); r) {
+            //detail::throw_if_replica_resource_name_is_invalid(*r);
+
+            qstr += fmt::format(" AND DATA_RESC_NAME = '{}'", *r);
+        }
         else if (const auto& e = std::get_if<replica_select_type>(&_replica_input); !e) {
             THROW(SYS_INVALID_INPUT_PARAM, "invalid replica number input");
         }
@@ -219,10 +222,18 @@ namespace irods::experimental::replica
         const irods::experimental::filesystem::path& _logical_path,
         const replica_number_type _replica_number) -> std::uintmax_t
     {
-        detail::throw_if_replica_logical_path_is_invalid(_comm, _logical_path);
-        detail::throw_if_replica_number_is_invalid(_replica_number);
-
         const auto result = get_data_object_info(_comm, _logical_path, _replica_number).front();
+
+        return static_cast<std::uintmax_t>(std::stoull(result[detail::genquery_column_index::DATA_SIZE]));
+    } // replica_size
+
+    template<typename rxComm>
+    auto replica_size(
+        rxComm& _comm,
+        const irods::experimental::filesystem::path& _logical_path,
+        const leaf_resource_name_type _leaf_resource_name) -> std::uintmax_t
+    {
+        const auto result = get_data_object_info(_comm, _logical_path, _leaf_resource_name).front();
 
         return static_cast<std::uintmax_t>(std::stoull(result[detail::genquery_column_index::DATA_SIZE]));
     } // replica_size
@@ -245,6 +256,15 @@ namespace irods::experimental::replica
         const replica_number_type _replica_number) -> bool
     {
         return replica_size(_comm, _logical_path, _replica_number) == 0;
+    } // is_replica_empty
+
+    template<typename rxComm>
+    auto is_replica_empty(
+        rxComm& _comm,
+        const irods::experimental::filesystem::path& _logical_path,
+        const leaf_resource_name_type _leaf_resource_name) -> bool
+    {
+        return replica_size(_comm, _logical_path, _leaf_resource_name) == 0;
     } // is_replica_empty
 
     /// \brief Calculate checksum for a replica
@@ -274,7 +294,6 @@ namespace irods::experimental::replica
         detail::throw_if_replica_number_is_invalid(_replica_number);
 
         dataObjInp_t input{};
-        std::string replica_number_string;
         auto cond_input = make_key_value_proxy(input.condInput);
 
         cond_input[REPL_NUM_KW] = std::to_string(_replica_number);
@@ -289,12 +308,49 @@ namespace irods::experimental::replica
 
         if constexpr (std::is_same_v<rxComm, rsComm_t>) {
             if (const auto ec = rsDataObjChksum(&_comm, &input, &checksum); ec < 0) {
-                THROW(ec, fmt::format("cannot calculate checksum for [{}] (replica [{}])", _logical_path.string(), _replica_number));
+                THROW(ec, fmt::format("cannot calculate checksum for [{}] (replica [{}])", _logical_path.c_str(), _replica_number));
             }
         }
         else {
             if (const auto ec = rcDataObjChksum(&_comm, &input, &checksum); ec < 0) {
-                THROW(ec, fmt::format("cannot calculate checksum for [{}] (replica [{}])", _logical_path.string(), _replica_number));
+                THROW(ec, fmt::format("cannot calculate checksum for [{}] (replica [{}])", _logical_path.c_str(), _replica_number));
+            }
+        }
+
+        return checksum ? checksum : std::string{};
+    } // replica_checksum
+
+    template<typename rxComm>
+    auto replica_checksum(
+        rxComm& _comm,
+        const irods::experimental::filesystem::path& _logical_path,
+        const leaf_resource_name_type _leaf_resource_name,
+        verification_calculation _calculation = verification_calculation::if_empty) -> std::string
+    {
+        detail::throw_if_replica_logical_path_is_invalid(_comm, _logical_path);
+        //detail::throw_if_replica_resource_name_is_invalid(_leaf_resource_name);
+
+        dataObjInp_t input{};
+        auto cond_input = make_key_value_proxy(input.condInput);
+
+        cond_input[LEAF_RESOURCE_NAME_KW] = _leaf_resource_name;
+
+        std::snprintf(input.objPath, sizeof(input.objPath), "%s", _logical_path.c_str());
+
+        if (verification_calculation::always == _calculation) {
+            cond_input[FORCE_CHKSUM_KW] = "";
+        }
+
+        char* checksum{};
+
+        if constexpr (std::is_same_v<rxComm, rsComm_t>) {
+            if (const auto ec = rsDataObjChksum(&_comm, &input, &checksum); ec < 0) {
+                THROW(ec, fmt::format("cannot calculate checksum for [{}] (resource [{}])", _logical_path.c_str(), _leaf_resource_name.data()));
+            }
+        }
+        else {
+            if (const auto ec = rcDataObjChksum(&_comm, &input, &checksum); ec < 0) {
+                THROW(ec, fmt::format("cannot calculate checksum for [{}] (resource [{}])", _logical_path.c_str(), _leaf_resource_name.data()));
             }
         }
 
@@ -326,6 +382,23 @@ namespace irods::experimental::replica
         detail::throw_if_replica_number_is_invalid(_replica_number);
 
         const auto result = get_data_object_info(_comm, _logical_path, _replica_number).front();
+        const auto& mtime = result[detail::genquery_column_index::DATA_MODIFY_TIME];
+
+        return object_time_type{std::chrono::seconds{std::stoull(mtime)}};
+    } // last_write_time
+
+    template<typename rxComm>
+    auto last_write_time(
+        rxComm& _comm,
+        const irods::experimental::filesystem::path& _logical_path,
+        const leaf_resource_name_type _leaf_resource_name) -> irods::experimental::filesystem::object_time_type
+    {
+        using object_time_type = irods::experimental::filesystem::object_time_type;
+
+        detail::throw_if_replica_logical_path_is_invalid(_comm, _logical_path);
+        //detail::throw_if_replica_resource_name_is_invalid(_leaf_resource_name);
+
+        const auto result = get_data_object_info(_comm, _logical_path, _leaf_resource_name).front();
         const auto& mtime = result[detail::genquery_column_index::DATA_MODIFY_TIME];
 
         return object_time_type{std::chrono::seconds{std::stoull(mtime)}};
@@ -387,6 +460,54 @@ namespace irods::experimental::replica
 
         if (const auto ec = mod_obj_info_fcn(_comm, input); ec != 0) {
             THROW(ec, fmt::format("cannot set mtime for [{}] (replica [{}])", _logical_path.c_str(), _replica_number));
+        }
+    } // last_write_time
+
+    template<typename rxComm>
+    auto last_write_time(
+        rxComm& _comm,
+        const irods::experimental::filesystem::path& _logical_path,
+        const leaf_resource_name_type _leaf_resource_name,
+        const irods::experimental::filesystem::object_time_type _new_time) -> void
+    {
+        detail::throw_if_replica_logical_path_is_invalid(_comm, _logical_path);
+        //detail::throw_if_replica_resource_name_is_invalid(_leaf_resource_name);
+
+        const auto seconds = _new_time.time_since_epoch();
+        std::stringstream new_time;
+        new_time << std::setfill('0') << std::setw(11) << std::to_string(seconds.count());
+
+        std::string resc_hier;
+
+        {
+            const auto replica_info = get_data_object_info(_comm, _logical_path, _leaf_resource_name).front();
+            resc_hier = replica_info[detail::genquery_column_index::DATA_RESC_HIER];
+        }
+
+        dataObjInfo_t info{};
+        std::snprintf(info.objPath, sizeof(info.objPath), "%s", _logical_path.c_str());
+        std::snprintf(info.rescHier, sizeof(info.rescHier), "%s", resc_hier.c_str());
+
+        keyValPair_t kvp{};
+        auto reg_params = make_key_value_proxy(kvp);
+        reg_params[DATA_MODIFY_KW] = new_time.str();
+
+        modDataObjMeta_t input{};
+        input.dataObjInfo = &info;
+        input.regParam = reg_params.get();
+
+        const auto mod_obj_info_fcn = [](rxComm& _comm, modDataObjMeta_t& _inp)
+        {
+            if constexpr (std::is_same_v<rxComm, rsComm_t>) {
+                return rsModDataObjMeta(&_comm, &_inp);
+            }
+            else {
+                return rcModDataObjMeta(&_comm, &_inp);
+            }
+        };
+
+        if (const auto ec = mod_obj_info_fcn(_comm, input); ec != 0) {
+            THROW(ec, fmt::format("cannot set mtime for [{}] (resource [{}])", _logical_path.c_str(), _leaf_resource_name));
         }
     } // last_write_time
 } // namespace irods::experimental::replica
