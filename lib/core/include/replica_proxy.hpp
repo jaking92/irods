@@ -497,6 +497,55 @@ namespace irods::experimental::replica
         return duplicate_replica(*_replica.get());
     } // duplicate_replica
 
+    /// \brief Takes a structured JSON input and creates a replica proxy
+    ///
+    /// \param[in] _logical_path The DataObjInfo holds an objPath, but the catalog only holds the data name and collection ID
+    /// \param[in] _input \parblock
+    /// Structured JSON in the following format:
+    /// \code{.js}
+    ///     {
+    ///         <r_data_main_column>: <string>,
+    ///         ...
+    ///     }
+    /// \endcode
+    /// \endparblock
+    ///
+    /// \returns std::pair<replica_proxy<DataObjInfo>, lifetime_manager<DataObjInfo>>
+    /// \retval data_object_proxy and lifetime_manager for underlying struct
+    ///
+    /// \since 4.2.9
+    static auto make_replica_proxy(std::string_view _logical_path, const nlohmann::json& _input)
+        -> std::pair<replica_proxy<DataObjInfo>, lifetime_manager<DataObjInfo>>
+    {
+        auto proxy_lm_pair = make_replica_proxy();
+        auto& proxy = proxy_lm_pair.first;
+
+        proxy.data_id(std::stoul(_input.at("data_id").get<std::string>()));
+        proxy.collection_id(std::stoul(_input.at("coll_id").get<std::string>()));
+        proxy.replica_number(std::stoi(_input.at("data_repl_num").get<std::string>()));
+        proxy.version(_input.at("data_version").get<std::string>());
+        proxy.type(_input.at("data_type_name").get<std::string>());
+        proxy.size(std::stoul(_input.at("data_size").get<std::string>()));
+        proxy.physical_path(_input.at("data_path").get<std::string>());
+        proxy.owner_user_name(_input.at("data_owner_name").get<std::string>());
+        proxy.owner_zone_name(_input.at("data_owner_zone").get<std::string>());
+        proxy.replica_status(std::stoi(_input.at("data_is_dirty").get<std::string>()));
+        proxy.status(_input.at("data_status").get<std::string>());
+        proxy.checksum(_input.at("data_checksum").get<std::string>());
+        proxy.data_expiry(_input.at("data_expiry_ts").get<std::string>());
+        proxy.map_id(std::stoi(_input.at("data_map_id").get<std::string>()));
+        proxy.mode(_input.at("data_mode").get<std::string>());
+        proxy.comments(_input.at("r_comment").get<std::string>());
+        proxy.ctime(_input.at("create_ts").get<std::string>());
+        proxy.mtime(_input.at("modify_ts").get<std::string>());
+        proxy.resource_id(std::stoul(_input.at("resc_id").get<std::string>()));
+
+        // TODO: not part of r_data_main, only tracks data_name and coll_id
+        proxy.logical_path(_logical_path);
+
+        return proxy_lm_pair;
+    } // make_replica_proxy
+
     template<typename doi_type>
     static auto to_json(const replica_proxy<doi_type>& _proxy) -> nlohmann::json
     {
