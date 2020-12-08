@@ -156,6 +156,8 @@ namespace irods
             /// \since 4.2.9
             std::string resc_id_to_name(std::string_view _id);
 
+            rodsLong_t resc_name_to_id(std::string_view _name);
+
             // =-=-=-=-=-=-=-
             /// @brief check whether the specified resource name is a coordinating resource
             error is_coordinating_resource( const std::string&, bool& );

@@ -1323,6 +1323,28 @@ namespace irods
         return resc_id_to_name(id);
     } // resc_id_to_name
 
+    rodsLong_t resource_manager::resc_name_to_id(std::string_view _name)
+    {
+        for (const auto& e : resource_id_map_) {
+            const auto resc = e.second;
+            std::string resource_name;
+
+            if (const error ret = resc->get_property<std::string>(RESOURCE_NAME, resource_name); !ret.ok()) {
+                THROW(ret.code(), ret.result());
+            }
+
+            if (resource_name.empty()) {
+                THROW(SYS_INVALID_RESC_INPUT, "empty resource name");
+            }
+
+            if (_name == resource_name) {
+                return e.first;
+            }
+        }
+
+        return 0;
+    } // resc_name_to_id
+
     error resource_manager::is_coordinating_resource(
         const std::string& _resc_name,
         bool&              _ret ) {

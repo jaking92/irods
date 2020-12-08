@@ -565,6 +565,9 @@ irods::error fileStageToCache(
     // =-=-=-=-=-=-=-
     // make the call to the "stagetocache" interface
     resc    = boost::dynamic_pointer_cast< irods::resource >( ptr );
+    irods::log(LOG_NOTICE, fmt::format(
+        "[{}:{}] - calling stagetocache in resource interface; filename:[{}]",
+        __FUNCTION__, __LINE__, _cache_file_name));
     ret_err = resc->call< const char* >( _comm, irods::RESOURCE_OP_STAGETOCACHE, _object, _cache_file_name.c_str() );
 
     // =-=-=-=-=-=-=-

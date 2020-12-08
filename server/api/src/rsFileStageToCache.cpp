@@ -151,9 +151,11 @@ int _rsFileStageToCache(
     // pass condInput
     file_obj->cond_input( _stage_inp->condInput );
 
+    irods::log(LOG_NOTICE, fmt::format("[{}:{}] - fileStageToCache pre", __FUNCTION__, __LINE__));
     irods::error stage_err = fileStageToCache( _comm,
                              file_obj,
                              _stage_inp->cacheFilename );
+    irods::log(LOG_NOTICE, fmt::format("[{}:{}] - fileStageToCache post", __FUNCTION__, __LINE__));
     // =-=-=-=-=-=-=-
     // handle errors if any
     if ( !stage_err.ok() ) {

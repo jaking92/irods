@@ -69,6 +69,7 @@ namespace irods::experimental::replica
         auto mode()             const noexcept -> std::string_view { return doi_->dataMode; }
         auto data_expiry()      const noexcept -> std::string_view { return doi_->dataExpiry; }
         auto map_id()           const noexcept -> int              { return doi_->dataMapId; }
+        auto flags()            const noexcept -> int              { return doi_->flags; }
         // clang-format on
 
         /// \returns key_value_proxy
@@ -262,6 +263,11 @@ namespace irods::experimental::replica
             typename P = doi_type,
             typename = std::enable_if_t<!std::is_const_v<P>>>
         auto map_id(const int _m) -> void { doi_->dataMapId = _m; }
+
+        template<
+            typename P = doi_type,
+            typename = std::enable_if_t<!std::is_const_v<P>>>
+        auto flags(const int _f) -> void { doi_->flags = _f; }
 
         /// \returns key_value_proxy
         ///
