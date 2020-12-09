@@ -559,6 +559,11 @@ namespace
             throw;
         }
 
+        if (O_RDONLY == (l1desc.dataObjInp->openFlags & O_ACCMODE)) {
+            irods::log(LOG_NOTICE, fmt::format("[{}:{}] - no update - read only", __FUNCTION__, __LINE__));
+            return;
+        }
+
         auto replica = replica_proxy{*l1desc.dataObjInfo};
 
         auto [reg_param, lm] = irods::experimental::make_key_value_proxy({{OPEN_TYPE_KW, std::to_string(l1desc.openType)}});
