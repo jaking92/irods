@@ -619,8 +619,8 @@ namespace
         //auto destination_cond_input = irods::experimental::make_key_value_proxy(destination_inp.condInput);
         auto destination_obj = get_destination_replica_info(_comm, destination_inp);
 
-        int status{};
         if (getValByKey(&_inp.condInput, ALL_KW)) {
+            int status{};
             for (const auto& r : destination_obj->replicas()) {
                 irods::log(LOG_DEBUG, fmt::format(
                     "[{}:{}] - hier:[{}],status:[{}],vote:[{}]",
