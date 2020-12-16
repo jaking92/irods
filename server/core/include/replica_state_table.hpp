@@ -78,7 +78,7 @@ namespace irods
         /// \param[in] _logical_path
         ///
         /// \returns nlohmann::json
-        /// \retval JSON object of the following form:
+        /// \retval JSON object of the following form: \parblock
         /// \code{.js}
         ///     {
         ///         "data_id": <int>,
@@ -97,6 +97,7 @@ namespace irods
         ///         ]
         ///     }
         /// \endcode
+        /// \endparblock
         ///
         /// \since 4.2.9
         auto at(std::string_view _logical_path) const -> nlohmann::json;
@@ -121,6 +122,7 @@ namespace irods
         ///                 ...
         ///         }
         ///     }
+        /// \endcode
         /// \endparblock
         ///
         /// \retval For state_type::before/state_type::after... \parblock
