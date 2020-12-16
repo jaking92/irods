@@ -337,9 +337,7 @@ namespace
                                 "[{}] - error finalizing replica; ec:[{}]",
                                 __FUNCTION__, ec));
 
-                            if (status >= 0) {
-                                status = ec;
-                            }
+                            status = ec;
                         }
                     }
                 }
@@ -348,9 +346,7 @@ namespace
                         "[{}] - error finalizing replica; ec:[{}]",
                         __FUNCTION__, e.code()));
 
-                    if (status >= 0) {
-                        status = e.code();
-                    }
+                    status = e.code();
                 }
             }
 
@@ -614,7 +610,7 @@ namespace
             irods::log(e);
             return e.code();
         }
-        catch (const std::exception e) {
+        catch (const std::exception& e) {
             irods::log(LOG_ERROR, fmt::format("[{}] - [{}]", __FUNCTION__, e.what()));
             return SYS_LIBRARY_ERROR;
         }
