@@ -7,10 +7,8 @@ else:
     import unittest
 
 from . import session
-from . import command
 from .. import test
 from .. import lib
-from ..configuration import IrodsConfig
 
 class test_iput_with_checksums(session.make_sessions_mixin([('otherrods', 'rods')], [('alice', 'apass')]), unittest.TestCase):
     def setUp(self):
