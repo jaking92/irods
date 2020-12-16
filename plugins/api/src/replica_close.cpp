@@ -214,6 +214,10 @@ namespace
 
         keyValPair_t reg_params{};
 
+        if (CREATE_TYPE == _l1desc.openType) {
+            addKeyVal(&reg_params, DATA_SIZE_KW, std::to_string(size_on_disk).data());
+            addKeyVal(&reg_params, REPL_STATUS_KW, REPLICA_STATUS_GOOD);
+        }
         // If the size of the replica has changed since opening it, then update the size.
         if (_l1desc.dataObjInfo->dataSize != size_on_disk) {
             addKeyVal(&reg_params, DATA_SIZE_KW, std::to_string(size_on_disk).data());
@@ -413,7 +417,9 @@ namespace
                         log::api::error("Failed to retrieve the replica's size on disk [error_code={}].", size_on_disk);
                         new_status = STALE_REPLICA;
                     }
-                    else if (size_on_disk == l1desc.dataObjInfo->dataSize && l1desc.bytesWritten <= 0) {
+                    else if (size_on_disk == l1desc.dataObjInfo->dataSize &&
+                             l1desc.bytesWritten <= 0 &&
+                             CREATE_TYPE != l1desc.openType) {
                         // If nothing changed, the replica status should be restored to the original status.
                         new_status = std::stoi(rst.get_property(l1desc.dataObjInfo->objPath, l1desc.dataObjInfo->replNum, "data_is_dirty"));
                     }
