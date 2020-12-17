@@ -219,7 +219,7 @@ namespace
             addKeyVal(&reg_params, REPL_STATUS_KW, REPLICA_STATUS_GOOD);
         }
         // If the size of the replica has changed since opening it, then update the size.
-        if (_l1desc.dataObjInfo->dataSize != size_on_disk) {
+        else if (_l1desc.dataObjInfo->dataSize != size_on_disk) {
             addKeyVal(&reg_params, DATA_SIZE_KW, std::to_string(size_on_disk).data());
             addKeyVal(&reg_params, DATA_MODIFY_KW, current_time_in_seconds().data());
             addKeyVal(&reg_params, REPL_STATUS_KW, REPLICA_STATUS_GOOD);
