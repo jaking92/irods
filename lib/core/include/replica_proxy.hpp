@@ -73,7 +73,7 @@ namespace irods::experimental::replica
 
         /// \returns key_value_proxy
         ///
-        /// \retval condInput for the DataObjInfo node as a key_value_proxy
+        /// \returns condInput for the DataObjInfo node as a key_value_proxy
         ///
         /// \since 4.2.9
         auto cond_input()       const -> key_value_proxy<const KeyValPair>
@@ -83,7 +83,7 @@ namespace irods::experimental::replica
 
         /// \returns const SpecColl*
         ///
-        /// \retval specColl pointer for the DataObjInfo node
+        /// \returns specColl pointer for the DataObjInfo node
         ///
         /// \since 4.2.9
         auto special_collection_info() const noexcept -> const SpecColl*
@@ -93,7 +93,7 @@ namespace irods::experimental::replica
 
         /// \returns const doi_pointer_type
         ///
-        /// \retval Pointer to the underlying struct
+        /// \returns Pointer to the underlying struct
         ///
         /// \since 4.2.9
         auto get() const noexcept -> const doi_pointer_type { return doi_; }
@@ -265,7 +265,7 @@ namespace irods::experimental::replica
 
         /// \returns key_value_proxy
         ///
-        /// \retval condInput for the DataObjInfo node as a key_value_proxy
+        /// \returns condInput for the DataObjInfo node as a key_value_proxy
         ///
         /// \since 4.2.9
         template<
@@ -278,7 +278,7 @@ namespace irods::experimental::replica
 
         /// \returns SpecColl*
         ///
-        /// \retval specColl pointer for the DataObjInfo node
+        /// \returns specColl pointer for the DataObjInfo node
         ///
         /// \since 4.2.9
         template<
@@ -289,8 +289,8 @@ namespace irods::experimental::replica
             return doi_->specColl;
         }
 
-        /// \returns doi_pointer_type
-        /// \retval Pointer to the underlying struct
+        /// \returns Pointer to the underlying struct
+        ///
         /// \since 4.2.9
         template<
             typename P = doi_type,
@@ -382,8 +382,7 @@ namespace irods::experimental::replica
     ///
     /// Allocates a new DataObjInfo and wraps the struct in a proxy and lifetime_manager
     ///
-    /// \return std::pair<replica_proxy<DataObjInfo>, lifetime_manager<DataObjInfo>>
-    /// \retval replica_proxy and lifetime_manager for managing a new DataObjInfo
+    /// \returns replica_proxy and lifetime_manager for managing a new DataObjInfo
     ///
     /// \since 4.2.9
     static auto make_replica_proxy() -> std::pair<replica_proxy<DataObjInfo>, lifetime_manager<DataObjInfo>>
@@ -401,8 +400,7 @@ namespace irods::experimental::replica
     /// \param[in] _logical_path
     /// \param[in] _replica_number
     ///
-    /// \return std::pair<replica_proxy<DataObjInfo>, lifetime_manager<DataObjInfo>>
-    /// \retval replica_proxy and lifetime_manager for managing a new DataObjInfo
+    /// \returns replica_proxy and lifetime_manager for managing a new DataObjInfo
     ///
     /// \since 4.2.9
     template<typename rxComm>
@@ -430,8 +428,7 @@ namespace irods::experimental::replica
     /// \param[in] _logical_path
     /// \param[in] _leaf_resource_name
     ///
-    /// \return std::pair<replica_proxy<DataObjInfo>, lifetime_manager<DataObjInfo>>
-    /// \retval replica_proxy and lifetime_manager for managing a new DataObjInfo
+    /// \returns replica_proxy and lifetime_manager for managing a new DataObjInfo
     ///
     /// \since 4.2.9
     template<typename rxComm>
@@ -501,17 +498,33 @@ namespace irods::experimental::replica
     ///
     /// \param[in] _logical_path The DataObjInfo holds an objPath, but the catalog only holds the data name and collection ID
     /// \param[in] _input \parblock
-    /// Structured JSON in the following format:
+    /// Structured JSON of the following format (order is unimportant, but all fields must be included):
     /// \code{.js}
     ///     {
-    ///         <r_data_main_column>: <string>,
-    ///         ...
+    ///         "data_id": <string>,
+    ///         "coll_id": <string>,
+    ///         "data_repl_num": <string>,
+    ///         "data_version": <string>,
+    ///         "data_type_name": <string>,
+    ///         "data_size": <string>,
+    ///         "data_path": <string>,
+    ///         "data_owner_name": <string>,
+    ///         "data_owner_zone": <string>,
+    ///         "data_is_dirty": <string>,
+    ///         "data_status": <string>,
+    ///         "data_checksum": <string>,
+    ///         "data_expiry_ts": <string>,
+    ///         "data_map_id": <string>,
+    ///         "data_mode": <string>,
+    ///         "r_comment": <string>,
+    ///         "create_ts": <string>,
+    ///         "modify_ts": <string>,
+    ///         "resc_id": <string>
     ///     }
     /// \endcode
     /// \endparblock
     ///
-    /// \returns std::pair<replica_proxy<DataObjInfo>, lifetime_manager<DataObjInfo>>
-    /// \retval data_object_proxy and lifetime_manager for underlying struct
+    /// \returns data_object_proxy and lifetime_manager for underlying struct
     ///
     /// \since 4.2.9
     static auto make_replica_proxy(std::string_view _logical_path, const nlohmann::json& _input)
@@ -546,6 +559,37 @@ namespace irods::experimental::replica
         return proxy_lm_pair;
     } // make_replica_proxy
 
+    /// \brief Takes a replica proxy and generates a structured JSON object
+    ///
+    /// \param[in] _proxy replica_proxy containing data object information
+    ///
+    /// \returns Structured JSON of the following format: \parblock
+    /// \code{.js}
+    ///     {
+    ///         "data_id": <string>,
+    ///         "coll_id": <string>,
+    ///         "data_repl_num": <string>,
+    ///         "data_version": <string>,
+    ///         "data_type_name": <string>,
+    ///         "data_size": <string>,
+    ///         "data_path": <string>,
+    ///         "data_owner_name": <string>,
+    ///         "data_owner_zone": <string>,
+    ///         "data_is_dirty": <string>,
+    ///         "data_status": <string>,
+    ///         "data_checksum": <string>,
+    ///         "data_expiry_ts": <string>,
+    ///         "data_map_id": <string>,
+    ///         "data_mode": <string>,
+    ///         "r_comment": <string>,
+    ///         "create_ts": <string>,
+    ///         "modify_ts": <string>,
+    ///         "resc_id": <string>
+    ///     }
+    /// \endcode
+    /// \endparblock
+    ///
+    /// \since 4.2.9
     template<typename doi_type>
     static auto to_json(const replica_proxy<doi_type>& _proxy) -> nlohmann::json
     {

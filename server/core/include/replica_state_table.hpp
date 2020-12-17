@@ -39,7 +39,7 @@ namespace irods
         /// \since 4.2.9
         static auto deinit() -> void;
 
-        /// \retval static Singleton instance
+        /// \returns static Singleton instance
         ///
         /// \since 4.2.9
         static auto instance() noexcept -> replica_state_table&;
@@ -60,47 +60,76 @@ namespace irods
         /// \throws irods::exception If no key matches _logical_path
         ///
         /// \since 4.2.9
-        auto erase(std::string_view _logical_path) -> void;
+        auto erase(const std::string_view _logical_path) -> void;
 
-        /// \brief Returns whether or not the specified logical path is contained in the structured JSON
+        /// \brief Returns whether or not an entry in the replica state table keys on the provided logical path
         ///
         /// \param[in] _logical_path
         ///
-        /// \returns bool
-        /// \retval true if replica_state_table map contains key _logical_path
-        /// \retval false if replica_state_table map does not contain key _logical_path
+        /// \retval true if replica state table contains key _logical_path
+        /// \retval false if replica state table does not contain key _logical_path
         ///
         /// \since 4.2.9
-        auto contains(std::string_view _logical_path) const -> bool;
+        auto contains(const std::string_view _logical_path) const -> bool;
 
         /// \brief return all information for all states of all replicas for a particular data object
         ///
         /// \param[in] _logical_path
         ///
-        /// \returns nlohmann::json
-        /// \retval JSON object of the following form: \parblock
+        /// \returns JSON object of the following form: \parblock
         /// \code{.js}
+        /// [
         ///     {
-        ///         "data_id": <int>,
-        ///         "replicas": [
-        ///             {
-        ///                 "before": {
-        ///                     <r_data_main_column>: <string>,
-        ///                     ...
-        ///                 },
-        ///                 "after": {
-        ///                     <r_data_main_column>: <string>,
-        ///                     ...
-        ///                 }
-        ///             },
-        ///             ...
-        ///         ]
-        ///     }
+        ///         "before": {
+        ///             "data_id": <string>,
+        ///             "coll_id": <string>,
+        ///             "data_repl_num": <string>,
+        ///             "data_version": <string>,
+        ///             "data_type_name": <string>,
+        ///             "data_size": <string>,
+        ///             "data_path": <string>,
+        ///             "data_owner_name": <string>,
+        ///             "data_owner_zone": <string>,
+        ///             "data_is_dirty": <string>,
+        ///             "data_status": <string>,
+        ///             "data_checksum": <string>,
+        ///             "data_expiry_ts": <string>,
+        ///             "data_map_id": <string>,
+        ///             "data_mode": <string>,
+        ///             "r_comment": <string>,
+        ///             "create_ts": <string>,
+        ///             "modify_ts": <string>,
+        ///             "resc_id": <string>
+        ///         },
+        ///         "after": {
+        ///             "data_id": <string>,
+        ///             "coll_id": <string>,
+        ///             "data_repl_num": <string>,
+        ///             "data_version": <string>,
+        ///             "data_type_name": <string>,
+        ///             "data_size": <string>,
+        ///             "data_path": <string>,
+        ///             "data_owner_name": <string>,
+        ///             "data_owner_zone": <string>,
+        ///             "data_is_dirty": <string>,
+        ///             "data_status": <string>,
+        ///             "data_checksum": <string>,
+        ///             "data_expiry_ts": <string>,
+        ///             "data_map_id": <string>,
+        ///             "data_mode": <string>,
+        ///             "r_comment": <string>,
+        ///             "create_ts": <string>,
+        ///             "modify_ts": <string>,
+        ///             "resc_id": <string>
+        ///         }
+        ///   },
+        ///   ...
+        /// ]
         /// \endcode
         /// \endparblock
         ///
         /// \since 4.2.9
-        auto at(std::string_view _logical_path) const -> nlohmann::json;
+        auto at(const std::string_view _logical_path) const -> nlohmann::json;
 
         /// \brief return a specific replica by replica number with optional before/after specification (defaults to both)
         ///
@@ -108,36 +137,84 @@ namespace irods
         /// \param[in] _replica_number Replica number in the "before" entry
         /// \param[in] _state
         ///
-        /// \returns nlohmann::json
-        /// \retval For state_type::both... \parblock
-        /// JSON object of the following form:
+        /// \returns JSON object of the following form: \parblock
+        /// - For state_type::both:
         /// \code{.js}
         ///     {
         ///         "before": {
-        ///             <r_data_main_column>: <string>,
-        ///             ...
+        ///             "data_id": <string>,
+        ///             "coll_id": <string>,
+        ///             "data_repl_num": <string>,
+        ///             "data_version": <string>,
+        ///             "data_type_name": <string>,
+        ///             "data_size": <string>,
+        ///             "data_path": <string>,
+        ///             "data_owner_name": <string>,
+        ///             "data_owner_zone": <string>,
+        ///             "data_is_dirty": <string>,
+        ///             "data_status": <string>,
+        ///             "data_checksum": <string>,
+        ///             "data_expiry_ts": <string>,
+        ///             "data_map_id": <string>,
+        ///             "data_mode": <string>,
+        ///             "r_comment": <string>,
+        ///             "create_ts": <string>,
+        ///             "modify_ts": <string>,
+        ///             "resc_id": <string>
         ///         },
         ///         "after": {
-        ///                 <r_data_main_column>: <string>,
-        ///                 ...
+        ///             "data_id": <string>,
+        ///             "coll_id": <string>,
+        ///             "data_repl_num": <string>,
+        ///             "data_version": <string>,
+        ///             "data_type_name": <string>,
+        ///             "data_size": <string>,
+        ///             "data_path": <string>,
+        ///             "data_owner_name": <string>,
+        ///             "data_owner_zone": <string>,
+        ///             "data_is_dirty": <string>,
+        ///             "data_status": <string>,
+        ///             "data_checksum": <string>,
+        ///             "data_expiry_ts": <string>,
+        ///             "data_map_id": <string>,
+        ///             "data_mode": <string>,
+        ///             "r_comment": <string>,
+        ///             "create_ts": <string>,
+        ///             "modify_ts": <string>,
+        ///             "resc_id": <string>
         ///         }
         ///     }
         /// \endcode
-        /// \endparblock
         ///
-        /// \retval For state_type::before/state_type::after... \parblock
-        /// JSON object of the following form:
+        /// - For state_type::before/state_type::after:
         /// \code{.js}
         ///     {
-        ///         <r_data_main_column>: <string>,
-        ///         ...
+        ///         "data_id": <string>,
+        ///         "coll_id": <string>,
+        ///         "data_repl_num": <string>,
+        ///         "data_version": <string>,
+        ///         "data_type_name": <string>,
+        ///         "data_size": <string>,
+        ///         "data_path": <string>,
+        ///         "data_owner_name": <string>,
+        ///         "data_owner_zone": <string>,
+        ///         "data_is_dirty": <string>,
+        ///         "data_status": <string>,
+        ///         "data_checksum": <string>,
+        ///         "data_expiry_ts": <string>,
+        ///         "data_map_id": <string>,
+        ///         "data_mode": <string>,
+        ///         "r_comment": <string>,
+        ///         "create_ts": <string>,
+        ///         "modify_ts": <string>,
+        ///         "resc_id": <string>
         ///     }
         /// \endcode
         /// \endparblock
         ///
         /// \since 4.2.9
-        auto at(std::string_view _logical_path,
-                std::string_view _leaf_resource_name,
+        auto at(const std::string_view _logical_path,
+                const std::string_view _leaf_resource_name,
                 const state_type _state = state_type::both) const -> nlohmann::json;
 
         /// \brief return a specific replica by replica number with optional before/after specification (defaults to both)
@@ -146,34 +223,83 @@ namespace irods
         /// \param[in] _replica_number Replica number in the "before" entry
         /// \param[in] _state
         ///
-        /// \returns nlohmann::json
-        /// \retval For state_type::both... \parblock
-        /// JSON object of the following form:
+        /// \returns JSON object of the following form: \parblock
+        /// - For state_type::both...
         /// \code{.js}
         ///     {
         ///         "before": {
-        ///             <r_data_main_column>: <string>,
-        ///             ...
+        ///             "data_id": <string>,
+        ///             "coll_id": <string>,
+        ///             "data_repl_num": <string>,
+        ///             "data_version": <string>,
+        ///             "data_type_name": <string>,
+        ///             "data_size": <string>,
+        ///             "data_path": <string>,
+        ///             "data_owner_name": <string>,
+        ///             "data_owner_zone": <string>,
+        ///             "data_is_dirty": <string>,
+        ///             "data_status": <string>,
+        ///             "data_checksum": <string>,
+        ///             "data_expiry_ts": <string>,
+        ///             "data_map_id": <string>,
+        ///             "data_mode": <string>,
+        ///             "r_comment": <string>,
+        ///             "create_ts": <string>,
+        ///             "modify_ts": <string>,
+        ///             "resc_id": <string>
         ///         },
         ///         "after": {
-        ///                 <r_data_main_column>: <string>,
-        ///                 ...
+        ///             "data_id": <string>,
+        ///             "coll_id": <string>,
+        ///             "data_repl_num": <string>,
+        ///             "data_version": <string>,
+        ///             "data_type_name": <string>,
+        ///             "data_size": <string>,
+        ///             "data_path": <string>,
+        ///             "data_owner_name": <string>,
+        ///             "data_owner_zone": <string>,
+        ///             "data_is_dirty": <string>,
+        ///             "data_status": <string>,
+        ///             "data_checksum": <string>,
+        ///             "data_expiry_ts": <string>,
+        ///             "data_map_id": <string>,
+        ///             "data_mode": <string>,
+        ///             "r_comment": <string>,
+        ///             "create_ts": <string>,
+        ///             "modify_ts": <string>,
+        ///             "resc_id": <string>
         ///         }
         ///     }
-        /// \endparblock
+        /// \endcode
         ///
-        /// \retval For state_type::before/state_type::after... \parblock
-        /// JSON object of the following form:
+        /// - For state_type::before/state_type::after...
         /// \code{.js}
         ///     {
-        ///         <r_data_main_column>: <string>,
-        ///         ...
+        ///         "data_id": <string>,
+        ///         "coll_id": <string>,
+        ///         "data_repl_num": <string>,
+        ///         "data_version": <string>,
+        ///         "data_type_name": <string>,
+        ///         "data_size": <string>,
+        ///         "data_path": <string>,
+        ///         "data_owner_name": <string>,
+        ///         "data_owner_zone": <string>,
+        ///         "data_is_dirty": <string>,
+        ///         "data_status": <string>,
+        ///         "data_checksum": <string>,
+        ///         "data_expiry_ts": <string>,
+        ///         "data_map_id": <string>,
+        ///         "data_mode": <string>,
+        ///         "r_comment": <string>,
+        ///         "create_ts": <string>,
+        ///         "modify_ts": <string>,
+        ///         "resc_id": <string>
         ///     }
         /// \endcode
         /// \endparblock
         ///
         /// \since 4.2.9
-        auto at(std::string_view _logical_path,
+        auto at(const std::string_view _logical_path,
                 const int _replica_number,
                 const state_type _state = state_type::both) const -> nlohmann::json;
 
@@ -181,8 +307,8 @@ namespace irods
         ///
         /// \param[in] _logical_path
         /// \param[in] _replica_number Replica number in the "before" entry
-        /// \param[in] _updates \parblock
-        /// JSON input representing changes to be made. Must be of the following form:
+        /// \param[in] _updates JSON input representing changes to be made. \parblock
+        /// Must be of the following form (only fields which need updating need to be included):
         /// \code{.js}
         ///     {
         ///         <r_data_main_column>: <string>,
@@ -192,7 +318,7 @@ namespace irods
         /// \endparblock
         ///
         /// \since 4.2.9
-        auto update(std::string_view _logical_path,
+        auto update(const std::string_view _logical_path,
                     const int _replica_number,
                     const nlohmann::json& _updates) -> void;
 
@@ -200,8 +326,8 @@ namespace irods
         ///
         /// \param[in] _logical_path
         /// \param[in] _leaf_resource_name Leaf resource name in the "before" entry
-        /// \param[in] _updates \parblock
-        /// JSON input representing changes to be made. Must be of the following form:
+        /// \param[in] _updates JSON input representing changes to be made. \parblock
+        /// Must be of the following form (only fields which need updating need to be included):
         /// \code{.js}
         ///     {
         ///         <r_data_main_column>: <string>,
@@ -211,8 +337,8 @@ namespace irods
         /// \endparblock
         ///
         /// \since 4.2.9
-        auto update(std::string_view _logical_path,
-                    std::string_view _leaf_resource_name,
+        auto update(const std::string_view _logical_path,
+                    const std::string_view _leaf_resource_name,
                     const nlohmann::json& _updates) -> void;
 
         /// \brief Returns the value of a given property of the given replica in the state table
@@ -226,9 +352,9 @@ namespace irods
         ///
         /// \since 4.2.9
         auto get_property(
-            std::string_view _logical_path,
+            const std::string_view _logical_path,
             const int _replica_number,
-            std::string_view _property_name,
+            const std::string_view _property_name,
             const state_type _state = state_type::before) const -> std::string;
 
         /// \brief Returns the value of a given property of the given replica in the state table
@@ -242,9 +368,9 @@ namespace irods
         ///
         /// \since 4.2.9
         auto get_property(
-            std::string_view _logical_path,
-            std::string_view _leaf_resource_name,
-            std::string_view _property_name,
+            const std::string_view _logical_path,
+            const std::string_view _leaf_resource_name,
+            const std::string_view _property_name,
             const state_type _state = state_type::before) const -> std::string;
 
     private:

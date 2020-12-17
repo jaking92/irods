@@ -79,13 +79,13 @@ TEST_CASE("replica state table", "[basic]")
     {
         const auto data_object_json = rst.at(LOGICAL_PATH_1);
 
-        REQUIRE(REPLICA_COUNT == data_object_json.at("replicas").size());
+        REQUIRE(REPLICA_COUNT == data_object_json.size());
 
         // ensure that information matches
         for (int i = 0; i < REPLICA_COUNT; ++i) {
             const auto original_replica = irods::experimental::replica::make_replica_proxy(*replicas.at(i));
 
-            const auto& replica_json = data_object_json.at("replicas").at(i).at("before");
+            const auto& replica_json = data_object_json.at(i).at("before");
             const auto [before, lm] = irods::experimental::replica::make_replica_proxy(LOGICAL_PATH_1, replica_json);
 
             CHECK(before.data_id()        == original_replica.data_id());
