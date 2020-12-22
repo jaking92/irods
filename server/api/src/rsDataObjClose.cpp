@@ -339,6 +339,8 @@ namespace
         }
         if (PHYMV_DEST == l1desc.oprType) {
             reg_param[REPL_NUM_KW] = std::to_string(source_replica.replica_number());
+            // TODO: the source replica is trimmed before we get here, so we need to set the replica status to good... the question is... why is the source replica intermediate...
+            reg_param[REPL_STATUS_KW] = std::to_string(GOOD_REPLICA);
         }
         if (cond_input.contains(CHKSUM_KW)) {
             reg_param[CHKSUM_KW] = cond_input.at(CHKSUM_KW);

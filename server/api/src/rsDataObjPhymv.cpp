@@ -151,7 +151,7 @@ int open_source_replica(
     rsComm_t* rsComm,
     dataObjInp_t& source_data_obj_inp) {
     source_data_obj_inp.oprType = PHYMV_SRC;
-    source_data_obj_inp.openFlags = O_RDWR;
+    source_data_obj_inp.openFlags = O_RDONLY;
     int source_l1descInx = rsDataObjOpen(rsComm, &source_data_obj_inp);
     if (source_l1descInx < 0) {
         return source_l1descInx;
@@ -201,10 +201,10 @@ int replicate_data(
     // Copy data from source to destination
     int status = dataObjCopy(rsComm, destination_l1descInx);
     L1desc[destination_l1descInx].bytesWritten = L1desc[destination_l1descInx].dataObjInfo->dataSize;
-    L1desc[source_l1descInx].bytesWritten = 0;
     if (status < 0) {
         rodsLog(LOG_ERROR, "[%s] - dataObjCopy failed for [%s]",
             __FUNCTION__, destination_inp.objPath);
+        L1desc[destination_l1descInx].bytesWritten = status;
     }
     else {
         const int trim_status = dataObjUnlinkS(rsComm, &source_inp, L1desc[source_l1descInx].dataObjInfo);

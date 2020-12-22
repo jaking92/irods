@@ -126,7 +126,7 @@ namespace
                                          " DATA_RESC_HIER = '{}'",
                                          p.parent_path().c_str(),
                                          p.object_name().c_str(),
-                                         kvp[RESC_HIER_STR_KW].value());
+                                         kvp.at(RESC_HIER_STR_KW).value());
 
             for (auto&& row : irods::query{&_conn, gql}) {
                 data_id = std::stoull(row[0]);
@@ -145,7 +145,7 @@ namespace
                 l1desc.replica_token = rat.create_new_entry(data_id, replica_number, getpid());
             }
             else {
-                auto token = kvp[REPLICA_TOKEN_KW].value();
+                auto token = kvp.at(REPLICA_TOKEN_KW).value();
                 rat.append_pid(token.data(), data_id, replica_number, getpid());
                 l1desc.replica_token = token;
             }
@@ -166,7 +166,7 @@ namespace
         }
 
         const irods::experimental::key_value_proxy src{dataObjInp.condInput};
-        auto resc_hier = src[RESC_HIER_STR_KW].value();
+        auto resc_hier = src.at(RESC_HIER_STR_KW).value();
 
         dataObjInfo_t info{};
         rstrcpy(info.objPath, dataObjInp.objPath, MAX_NAME_LEN);
