@@ -26,9 +26,65 @@
 #include "irods_hierarchy_parser.hpp"
 #include "key_value_proxy.hpp"
 
-namespace {
+#define IRODS_FILESYSTEM_ENABLE_SERVER_SIDE_API
+#include "filesystem.hpp"
 
-namespace ix = irods::experimental;
+#define IRODS_REPLICA_ENABLE_SERVER_SIDE_API
+#include "data_object_proxy.hpp"
+
+namespace
+{
+    void throw_if_no_write_permissions_on_source_replica(RsComm& _comm, const DataObjInp& _source_inp)
+    {
+        namespace fs = irods::experimental::filesystem;
+
+        const char* source_hier = getValByKey(&_source_inp.condInput, RESC_HIER_STR_KW);
+
+        auto [obj, obj_lm] = irods::experimental::data_object::make_data_object_proxy(_comm, fs::path{_source_inp.objPath});
+        const auto& replica = irods::experimental::data_object::find_replica(obj, source_hier);
+        if (!replica) {
+            THROW(SYS_REPLICA_DOES_NOT_EXIST, fmt::format(
+                "replica does not exist; path:[[}],hier:[{]]",
+                _source_inp.objPath, source_hier));
+        }
+
+        DataObjInfo& data_obj_info = *replica->get();
+
+        std::string location;
+        if (const irods::error ret = irods::get_loc_for_hier_string(data_obj_info.rescHier, location); !ret.ok()) {
+            THROW(ret.code(), ret.result());
+        }
+
+        // test the source hier to determine if we have write access to the data
+        // stored.  if not then we cannot unlink that replica and should throw an
+        // error.
+        fileOpenInp_t open_inp{};
+        open_inp.mode = getDefFileMode();
+        open_inp.flags = O_WRONLY;
+        rstrcpy(open_inp.resc_name_, data_obj_info.rescName, MAX_NAME_LEN);
+        rstrcpy(open_inp.resc_hier_, data_obj_info.rescHier, MAX_NAME_LEN);
+        rstrcpy(open_inp.objPath, data_obj_info.objPath, MAX_NAME_LEN);
+        rstrcpy(open_inp.addr.hostAddr, location.c_str(), NAME_LEN);
+        rstrcpy(open_inp.fileName, data_obj_info.filePath, MAX_NAME_LEN);
+        rstrcpy(open_inp.in_pdmo, data_obj_info.in_pdmo, MAX_NAME_LEN);
+
+        // kv passthru
+        copyKeyVal(&data_obj_info.condInput, &open_inp.condInput);
+
+        const int l3_index = rsFileOpen(&_comm, &open_inp);
+        clearKeyVal(&open_inp.condInput);
+        if(l3_index < 0) {
+            const std::string msg = fmt::format("unable to open {} for unlink", data_obj_info.objPath);
+            addRErrorMsg(&_comm.rError, l3_index, msg.c_str());
+            THROW(l3_index, msg);
+        }
+
+        FileCloseInp close_inp{};
+        close_inp.fileInx = l3_index;
+        if (const int ec = rsFileClose(&_comm, &close_inp); ec < 0) {
+            THROW(ec, fmt::format("failed to close {}", data_obj_info.objPath));
+        }
+    } // throw_if_no_write_permissions_on_source_replica
 
 dataObjInp_t init_destination_replica_input(
     rsComm_t* rsComm,
@@ -164,7 +220,7 @@ int open_destination_replica(
     dataObjInp_t& destination_data_obj_inp,
     const int source_l1desc_inx)
 {
-    auto kvp = ix::make_key_value_proxy(destination_data_obj_inp.condInput);
+    auto kvp = irods::experimental::make_key_value_proxy(destination_data_obj_inp.condInput);
     kvp[REG_REPL_KW] = "";
     kvp[DATA_ID_KW] = std::to_string(L1desc[source_l1desc_inx].dataObjInfo->dataId);
     kvp[SOURCE_L1_DESC_KW] = std::to_string(source_l1desc_inx);
@@ -207,6 +263,7 @@ int replicate_data(
         L1desc[destination_l1descInx].bytesWritten = status;
     }
     else {
+        L1desc[destination_l1descInx].bytesWritten = 0;
         const int trim_status = dataObjUnlinkS(rsComm, &source_inp, L1desc[source_l1descInx].dataObjInfo);
         if (trim_status < 0) {
             rodsLog(LOG_ERROR, "[%s] - unlinking source replica failed with [%d]",
@@ -238,8 +295,15 @@ int move_replica(
     destination_inp = init_destination_replica_input(rsComm, dataObjInp);
     source_inp = init_source_replica_input(rsComm, dataObjInp);
 
+    // Need to make sure the physical data of the source replica can be unlinked before
+    // beginning the phymv operation as it will be unlinked after the data movement has
+    // taken place. Failing to do so may result in unintentionally unregistered data in
+    // the resource vault.
+    throw_if_no_write_permissions_on_source_replica(*rsComm, source_inp);
+
     const char* dest_hier = getValByKey(&destination_inp.condInput, RESC_HIER_STR_KW);
     const char* source_hier = getValByKey(&source_inp.condInput, RESC_HIER_STR_KW);
+
     if (dest_hier && source_hier &&
         std::string{dest_hier} == source_hier) {
         return 0;

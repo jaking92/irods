@@ -83,16 +83,30 @@ class Test_iPhymv(ResourceBase, unittest.TestCase):
 
     @unittest.skipIf(test.settings.TOPOLOGY_FROM_RESOURCE_SERVER, 'Skip for Topology Testing on Resource Server')
     def test_iphymv_unable_to_unlink__2820(self):
-        filepath = os.path.join(self.admin.local_session_dir, 'file')
-        lib.make_file(filepath, 1)
-        dest_path = self.admin.session_collection + '/file'
-        self.admin.assert_icommand('ireg '+filepath+' '+dest_path)
+        filename = 'test_iphymv_unable_to_unlink__2820'
+        localfile = os.path.join(self.admin.local_session_dir, filename)
+        lib.make_file(localfile, 1)
+        dest_path = os.path.join(self.admin.session_collection, filename)
+        filepath = os.path.join(self.admin.get_vault_session_path(), filename)
+
+        self.admin.assert_icommand(['iput', localfile, dest_path])
+        self.admin.assert_icommand(['ils', '-L', dest_path], 'STDOUT', filepath)
 
         os.chmod(filepath, 0444)
-        self.admin.assert_icommand('iphymv -S demoResc -R TestResc '+dest_path, 'STDERR_SINGLELINE', 'Permission denied')
+        try:
+            self.admin.assert_icommand('iphymv -S demoResc -R TestResc '+dest_path, 'STDERR_SINGLELINE', 'Permission denied')
+            # ensure that physical file was not unlinked
+            self.assertTrue(os.path.exists(filepath))
+            self.admin.assert_icommand(['ils', '-L', dest_path], 'STDOUT', 'demoResc')
+        except:
+            self.admin.assert_icommand(['ils', '-L', dest_path], 'STDOUT', filename)
+            raise
 
         os.chmod(filepath, 0666)
         self.admin.assert_icommand('iphymv -S demoResc -R TestResc '+dest_path)
+        # ensure that file was unlinked
+        self.assertFalse(os.path.exists(filepath))
+        self.admin.assert_icommand(['ils', '-L', dest_path], 'STDOUT', 'TestResc')
 
     def test_iphymv_to_self(self):
         filename = 'test_iphymv_to_self'

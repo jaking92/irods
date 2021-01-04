@@ -927,7 +927,12 @@ namespace
                 replica.hierarchy()));
 
             const int l1descInx = open_replica(*rsComm, *dataObjInp, replica);
-            if (l1descInx < 3) {
+            if (l1descInx < 0) {
+                THROW(l1descInx, fmt::format(
+                    "[{}] - failed to open replica:[{}]",
+                    __FUNCTION__, l1descInx));
+            }
+            else if (l1descInx < 3) {
                 THROW(SYS_FILE_DESC_OUT_OF_RANGE, fmt::format(
                     "[{}] - file descriptor out of range:[{}]",
                     __FUNCTION__, l1descInx));
