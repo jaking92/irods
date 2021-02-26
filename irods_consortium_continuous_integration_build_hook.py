@@ -128,7 +128,12 @@ def copy_output_packages(irods_build_dir, icommands_build_dir, output_root_direc
         lambda s: s.endswith(irods_python_ci_utilities.get_package_suffix()))
     # Unit-test binaries
     irods_python_ci_utilities.gather_files_satisfying_predicate(
-        os.path.join(irods_build_dir, 'unit_tests'),
+        os.path.join(irods_build_dir, 'cpp_tests', 'unit_tests'),
+        irods_python_ci_utilities.append_os_specific_directory(output_root_directory),
+        lambda s: os.path.basename(s).startswith('irods_'))
+    # Server test binaries
+    irods_python_ci_utilities.gather_files_satisfying_predicate(
+        os.path.join(irods_build_dir, 'cpp_tests', 'server_tests'),
         irods_python_ci_utilities.append_os_specific_directory(output_root_directory),
         lambda s: os.path.basename(s).startswith('irods_'))
     # iCommands
