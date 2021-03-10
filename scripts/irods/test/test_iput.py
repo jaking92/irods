@@ -6,6 +6,8 @@ if sys.version_info < (2, 7):
 else:
     import unittest
 
+import shutil
+import ustrings
 from . import session
 from .. import test
 from .. import lib
@@ -174,3 +176,82 @@ class test_iput_with_checksums(session.make_sessions_mixin([('otherrods', 'rods'
     def overwrite_verify_stale_with_checksum(self, filename, expected_checksum):
         pass
 
+class test_iput_with_special_resource_configurations(session.make_sessions_mixin([('otherrods', 'rods')], [('alice', 'apass')]), unittest.TestCase):
+    def setUp(self):
+        super(test_iput_with_special_resource_configurations, self).setUp()
+        self.admin = self.admin_sessions[0]
+        self.alice = self.user_sessions[0]
+
+    def tearDown(self):
+        super(test_iput_with_special_resource_configurations, self).tearDown()
+
+    def test_recursive_iput_to_replication_random_brood__issue_5072(self):
+        leaf_count = 30
+        self.assertEqual(leaf_count % 2, 0)
+        resource_host_pool = [test.settings.HOSTNAME_1, test.settings.HOSTNAME_2, test.settings.HOSTNAME_3]
+        root_resource = 'root_pt'
+        random_1 = 'rand_1'
+        random_2 = 'rand_2'
+        parent_pool = [random_1, random_2]
+        directory_path = os.path.join(self.alice.local_session_dir, 'test_recursive_iput_to_replication_random_brood__issue_5072')
+        collection_path = os.path.join(self.alice.session_collection, 'test_recursive_iput_to_replication_random_brood__issue_5072')
+
+        try:
+            self.admin.assert_icommand(['iadmin', 'mkresc', root_resource, 'passthru'], 'STDOUT', 'passthru')
+            self.admin.assert_icommand(['iadmin', 'mkresc', random_1, 'random'], 'STDOUT', 'random')
+            self.admin.assert_icommand(['iadmin', 'mkresc', random_2, 'random'], 'STDOUT', 'random')
+
+            self.admin.assert_icommand(['iadmin', 'addchildtoresc', root_resource, random_1])
+            self.admin.assert_icommand(['iadmin', 'addchildtoresc', root_resource, random_2])
+
+            for i in range(leaf_count):
+                resource_name = 'ufs_leaf_{}'.format(i)
+                vault_path = os.path.join(self.admin.local_session_dir, resource_name + '_storage_vault')
+                resource_hostname = resource_host_pool[i % 3]
+
+                self.admin.assert_icommand(
+                    ['iadmin', 'mkresc', resource_name, 'unixfilesystem', ':'.join([resource_hostname, vault_path])],
+                    'STDOUT', resource_hostname)
+
+                self.admin.assert_icommand(['iadmin', 'addchildtoresc', parent_pool[i % 2], resource_name])
+
+            self.alice.assert_icommand(['ilsresc', '--ascii'], 'STDOUT_MULTILINE', root_resource) # debug
+
+            lib.make_large_local_tmp_dir(directory_path, leaf_count, 10)
+
+            self.alice.run_icommand(['iput', '-r', '-R', root_resource, directory_path, collection_path])
+
+            out,_,_ = self.alice.run_icommand(['ils', '-l', collection_path])
+            print(out)
+
+            iquest_out, _, _ = self.alice.run_icommand(['iquest', '%s', 'select DATA_REPL_NUM'])
+            print(iquest_out)
+
+            replica_number_tallies = [0, 0]
+            for repl_num in iquest_out.splitlines():
+                # There should only be replicas 0 and 1
+                self.assertLess(int(repl_num), 2)
+                replica_number_tallies[int(repl_num)] = replica_number_tallies[int(repl_num)] + 1
+
+            ils_out, _, _ = self.alice.run_icommand(['ils', '-l', collection_path])
+            print(out) # debug
+
+        finally:
+            if os.path.exists(directory_path):
+                shutil.rmtree(directory_path)
+
+            self.alice.run_icommand(['irm', '-r', '-f', collection_path])
+
+            for i in range(leaf_count):
+                resource_name = 'ufs_leaf_{}'.format(i)
+
+                self.admin.assert_icommand(['iadmin', 'rmchildfromresc', parent_pool[i % 2], resource_name])
+
+                self.admin.assert_icommand(['iadmin', 'rmresc', resource_name])
+
+            self.admin.assert_icommand(['iadmin', 'rmchildfromresc', root_resource, random_1])
+            self.admin.assert_icommand(['iadmin', 'rmchildfromresc', root_resource, random_2])
+
+            self.admin.assert_icommand(['iadmin', 'rmresc', random_1])
+            self.admin.assert_icommand(['iadmin', 'rmresc', random_2])
+            self.admin.assert_icommand(['iadmin', 'rmresc', root_resource])
