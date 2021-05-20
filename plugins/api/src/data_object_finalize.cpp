@@ -172,7 +172,7 @@ namespace
         bind_values.reserve(cmap.size());
 
         // Bind values to the statement.
-        std::size_t index = 0;
+        std::size_t index = 1;
         for (auto&& c : cmap) {
             const auto& key = c.first;
 
@@ -196,14 +196,7 @@ namespace
         irods::log(LOG_DEBUG9, fmt::format("binding resc_id:[{}] at [{}]", resc_id, index));
         statement.bind(index, &resc_id);
 
-        try {
-            execute(statement);
-        }
-        catch (const nanodbc::database_error& e) {
-            THROW(SYS_LIBRARY_ERROR, fmt::format(
-                "[{}:{}] - database error occurred [{}]",
-                __FUNCTION__, __LINE__, e.what()));
-        }
+        execute(statement);
     } // set_replica_state
 
     auto set_data_object_state(
