@@ -45,6 +45,7 @@ def install_building_dependencies(externals_directory):
         externals = []
         for irods_externals in externals_list:
             external_path = os.path.join(os_specific_directory, irods_externals + '*.{0}'.format(package_suffix))
+            print(external_path)
             externals.append(glob.glob(external_path)[0])
         irods_python_ci_utilities.install_os_packages_from_files(externals)
 
