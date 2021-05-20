@@ -32,10 +32,10 @@ namespace irods::experimental::catalog
 
     auto bind_bigint_to_statement(bind_parameters& _bp) -> void
     {
-        const std::uint64_t v = std::stoul(_bp.json_input.at(_bp.column_name.data()).get<std::string>());
+        const std::int64_t v = std::stoul(_bp.json_input.at(_bp.column_name.data()).get<std::string>());
         _bp.bind_values.push_back(v);
 
-        const std::uint64_t& value = std::get<std::uint64_t>(_bp.bind_values.back());
+        const std::int64_t& value = std::get<std::int64_t>(_bp.bind_values.back());
         irods::log(LOG_DEBUG8, fmt::format("[{}:{}] - binding [{}] to [{}] at [{}]",
             __FUNCTION__, __LINE__, _bp.column_name, value, _bp.index));
 
@@ -44,10 +44,10 @@ namespace irods::experimental::catalog
 
     auto bind_integer_to_statement(bind_parameters& _bp) -> void
     {
-        const int v = std::stoi(_bp.json_input.at(_bp.column_name.data()).get<std::string>());
+        const std::int32_t v = std::stoi(_bp.json_input.at(_bp.column_name.data()).get<std::string>());
         _bp.bind_values.push_back(v);
 
-        const int& value = std::get<int>(_bp.bind_values.back());
+        const std::int32_t& value = std::get<std::int32_t>(_bp.bind_values.back());
         irods::log(LOG_DEBUG8, fmt::format("[{}:{}] - binding [{}] to [{}] at [{}]",
             __FUNCTION__, __LINE__, _bp.column_name, value, _bp.index));
 

@@ -18,7 +18,7 @@ struct rodsServerHost;
 namespace irods::experimental::catalog
 {
     // alias for the currently supported types for storing values in the catalog
-    using bind_type = std::variant<std::string, std::uint64_t, int>;
+    using bind_type = std::variant<std::string, std::int64_t, std::int32_t>;
 
     /// \brief Struct containing information for binding values to an SQL statement
     ///
