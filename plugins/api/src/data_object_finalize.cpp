@@ -196,7 +196,14 @@ namespace
         irods::log(LOG_DEBUG9, fmt::format("binding resc_id:[{}] at [{}]", resc_id, index));
         statement.bind(index, &resc_id);
 
-        execute(statement);
+        try {
+            execute(statement);
+        }
+        catch (const nanodbc::database_error& e) {
+            THROW(SYS_LIBRARY_ERROR, fmt::format(
+                "[{}:{}] - database error occurred [{}]",
+                __FUNCTION__, __LINE__, e.what()));
+        }
     } // set_replica_state
 
     auto set_data_object_state(
