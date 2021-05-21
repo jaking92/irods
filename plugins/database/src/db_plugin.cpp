@@ -15594,6 +15594,17 @@ auto db_data_object_finalize_op(
 
         const auto data_id = replicas.front().at("before").at("data_id").get<std::string>();
 
+        std::string sql = "update R_DATA_MAIN set";
+
+        for (const auto& c : column_names) {
+            sql += fmt::format(" {} = ?,", c);
+        }
+        sql.pop_back();
+
+        sql += " where data_id = ? and resc_id = ?";
+
+        irods::log(LOG_DEBUG9, fmt::format("statement:[{}]", sql));
+
         // Need to declare strings which will survive long enough to bind to the SQL
         // statement and execute (doesn't have to survive long enough to be committed).
         std::string data_repl_num;
@@ -15640,18 +15651,8 @@ auto db_data_object_finalize_op(
                 }
             }
 
-            std::string sql = "update R_DATA_MAIN set";
-
-            for (const auto& c : column_names) {
-                sql += fmt::format(" {} = ?,", c);
-            }
-            sql.pop_back();
-
-            sql += " where data_id = ? and resc_id = ?";
-
-            irods::log(LOG_NOTICE, fmt::format("statement:[{}]", sql));
-            irods::log(LOG_NOTICE, fmt::format("before:[{}]", before.dump()));
-            irods::log(LOG_NOTICE, fmt::format("after:[{}]", after.dump()));
+            irods::log(LOG_DEBUG9, fmt::format("before:[{}]", before.dump()));
+            irods::log(LOG_DEBUG9, fmt::format("after:[{}]", after.dump()));
 
             // We have to capture the strings first so that binding to the cllBindVars does not
             // rely on temporary variables.
