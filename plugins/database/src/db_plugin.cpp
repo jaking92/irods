@@ -15577,8 +15577,8 @@ auto db_data_object_finalize_op(
         "data_status",
         "data_checksum",
         "data_expiry_ts",
-        "data_map_id",
-        "data_mode",
+        //"data_map_id",
+        //"data_mode",
         "r_comment",
         "create_ts",
         "modify_ts",
@@ -15607,8 +15607,8 @@ auto db_data_object_finalize_op(
         std::string data_status;
         std::string data_checksum;
         std::string data_expiry_ts;
-        std::string data_map_id;
-        std::string data_mode;
+        //std::string data_map_id;
+        //std::string data_mode;
         std::string r_comment;
         std::string create_ts;
         std::string modify_ts;
@@ -15649,9 +15649,9 @@ auto db_data_object_finalize_op(
 
             sql += " where data_id = ? and resc_id = ?";
 
-            irods::log(LOG_DEBUG8, fmt::format("statement:[{}]", sql));
-            irods::log(LOG_DEBUG9, fmt::format("before:[{}]", before.dump()));
-            irods::log(LOG_DEBUG9, fmt::format("after:[{}]", after.dump()));
+            irods::log(LOG_NOTICE, fmt::format("statement:[{}]", sql));
+            irods::log(LOG_NOTICE, fmt::format("before:[{}]", before.dump()));
+            irods::log(LOG_NOTICE, fmt::format("after:[{}]", after.dump()));
 
             // We have to capture the strings first so that binding to the cllBindVars does not
             // rely on temporary variables.
@@ -15666,8 +15666,8 @@ auto db_data_object_finalize_op(
             data_status = after.at("data_status").get<std::string>();
             data_checksum = after.at("data_checksum").get<std::string>();
             data_expiry_ts = after.at("data_expiry_ts").get<std::string>();
-            data_map_id = after.at("data_map_id").get<std::string>();
-            data_mode = after.at("data_mode").get<std::string>();
+            //data_map_id = after.at("data_map_id").get<std::string>();
+            //data_mode = after.at("data_mode").get<std::string>();
             r_comment = after.at("r_comment").get<std::string>();
             create_ts = after.at("create_ts").get<std::string>();
             modify_ts = after.at("modify_ts").get<std::string>();
@@ -15688,8 +15688,8 @@ auto db_data_object_finalize_op(
             cllBindVars[cllBindVarCount++] = data_status.data();
             cllBindVars[cllBindVarCount++] = data_checksum.data();
             cllBindVars[cllBindVarCount++] = data_expiry_ts.data();
-            cllBindVars[cllBindVarCount++] = data_map_id.data();
-            cllBindVars[cllBindVarCount++] = data_mode.data();
+            //cllBindVars[cllBindVarCount++] = data_map_id.data();
+            //cllBindVars[cllBindVarCount++] = data_mode.data();
             cllBindVars[cllBindVarCount++] = r_comment.data();
             cllBindVars[cllBindVarCount++] = create_ts.data();
             cllBindVars[cllBindVarCount++] = modify_ts.data();
