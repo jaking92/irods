@@ -15689,7 +15689,7 @@ auto db_data_object_finalize_op(
             cllBindVars[cllBindVarCount++] = data_checksum.data();
             cllBindVars[cllBindVarCount++] = data_expiry_ts.data();
             //cllBindVars[cllBindVarCount++] = data_map_id.data();
-            //cllBindVars[cllBindVarCount++] = data_mode.data();
+            cllBindVars[cllBindVarCount++] = data_mode.data();
             cllBindVars[cllBindVarCount++] = r_comment.data();
             cllBindVars[cllBindVarCount++] = create_ts.data();
             cllBindVars[cllBindVarCount++] = modify_ts.data();
