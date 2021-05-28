@@ -15,5 +15,5 @@ target_link_libraries(
   mytest
   PRIVATE
   RodsAPIs
-  Threads::Threads
+  ${CMAKE_THREAD_LIBS_INIT}
   )
