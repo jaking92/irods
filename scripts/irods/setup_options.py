@@ -26,4 +26,10 @@ def add_options(parser):
             'prompting the user for input to perform server '
             'configuration.')
 
+    parser.add_option('--keep_server_running',
+                      dest='keep_server_running', action='store_true', default=False,
+                      help='Normally, the server is stopped after the test put/get is '
+                      'completed. When this option is enabled, the server will not be '
+                      'stopped after setup completes but will continue running.')
+
     start_options.add_options(parser)
