@@ -262,11 +262,14 @@ namespace {
         }
 
         // Free the existing opened data object info and replace with the newly created replica using opened L1 descriptor info
+            TRACE_LOG()
         if (auto* l1desc = irods::find_l1desc(fs::path{destination_replica.logical_path().data()}, destination_replica.hierarchy()); l1desc) {
+            TRACE_LOG()
             freeAllDataObjInfo(l1desc->dataObjInfo);
             l1desc->dataObjInfo = destination_replica_lm.release();
         }
         else {
+            TRACE_LOG()
             phy_path_reg_cond_input[DATA_ID_KW] = std::to_string(destination_replica.data_id());
             phy_path_reg_cond_input[DATA_OWNER_KW] = destination_replica.owner_user_name();
             phy_path_reg_cond_input[DATA_OWNER_ZONE_KW] = destination_replica.owner_zone_name();
@@ -378,11 +381,14 @@ namespace {
         } // static PEP for filePathReg
 
         // Free the existing opened data object info and replace with the newly created replica using opened L1 descriptor info
+            TRACE_LOG()
         if (auto* l1desc = irods::find_l1desc(fs::path{destination_replica.logical_path().data()}, destination_replica.hierarchy()); l1desc) {
+            TRACE_LOG()
             freeAllDataObjInfo(l1desc->dataObjInfo);
             l1desc->dataObjInfo = destination_replica_lm.release();
         }
         else {
+            TRACE_LOG()
             phy_path_reg_cond_input[DATA_ID_KW] = std::to_string(destination_replica.data_id());
             phy_path_reg_cond_input[DATA_OWNER_KW] = destination_replica.owner_user_name();
             phy_path_reg_cond_input[DATA_OWNER_ZONE_KW] = destination_replica.owner_zone_name();
