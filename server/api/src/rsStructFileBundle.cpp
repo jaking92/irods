@@ -122,6 +122,11 @@ int rsStructFileBundle(
         status = _rsStructFileBundle( rsComm, structFileBundleInp );
     }
     else {
+        // we redirect here, which means the open happens on the machine which will host the
+        // data and the RST is over there. The rsPhyPathReg call will redirect back to the
+        // catalog provider to register the replica and the information in the L1 descriptor
+        // will not be populated. It is unclear to me how the data ID and some of the other
+        // information is getting into the L1 descriptor.
         status = rcStructFileBundle( host->conn, structFileBundleInp );
     } // else remote host
 
