@@ -333,6 +333,7 @@ namespace
                 object_locked = true;
             }
 
+            TRACE_LOG()
             if (const int ec = rsPhyPathReg(&_comm, l1desc.dataObjInp); ec < 0) {
                 irods::log(LOG_ERROR, fmt::format(
                     "[{}:{}] - failed in rsPhyPathReg "
@@ -354,7 +355,9 @@ namespace
             // Need to find a better way to populate the information going in or coming out so that the interface makes more sense
             auto registered_replica = ir::make_replica_proxy(*l1desc.dataObjInfo);
 
+            TRACE_LOG()
             if (irods::CFG_SERVICE_ROLE_PROVIDER != svc_role) {
+            TRACE_LOG()
                 // The catalog populates certain information in the dataObjInfo structure
                 // which rsPhyPathReg then inserts into the open L1 descriptor's dataObjInfo.
                 // This assumes, however, that no redirect has occurred. If this server is not

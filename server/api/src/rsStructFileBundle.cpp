@@ -80,6 +80,7 @@ int rsStructFileBundle(
     dataObjInfo_t* ip{&info};
     const char* h{getValByKey(&structFileBundleInp->condInput, RESC_HIER_STR_KW)};
     if (!h) {
+            TRACE_LOG()
         irods::error ret = irods::resource_redirect(irods::CREATE_OPERATION, rsComm, &data_inp, hier, host, local, &ip);
         if ( !ret.ok() ) {
             std::stringstream msg;
@@ -93,9 +94,11 @@ int rsStructFileBundle(
         // we resolved the redirect and have a host, set the hier str for subsequent
         // api calls, etc.
         irods::log(LOG_DEBUG, fmt::format("[{}:{}] - Adding [{}] as kw", __FUNCTION__, __LINE__, hier));
+            TRACE_LOG()
         addKeyVal(&structFileBundleInp->condInput, RESC_HIER_STR_KW, hier.c_str());
     }
     else {
+            TRACE_LOG()
         irods::file_object_ptr file_obj(new irods::file_object());
         file_obj->logical_path(structFileBundleInp->objPath);
         irods::error fac_err = irods::file_object_factory(rsComm, &data_inp, file_obj, &ip);
@@ -119,6 +122,7 @@ int rsStructFileBundle(
     }
 
     if ( LOCAL_HOST == local ) {
+            TRACE_LOG()
         status = _rsStructFileBundle( rsComm, structFileBundleInp );
     }
     else {
@@ -127,6 +131,7 @@ int rsStructFileBundle(
         // catalog provider to register the replica and the information in the L1 descriptor
         // will not be populated. It is unclear to me how the data ID and some of the other
         // information is getting into the L1 descriptor.
+            TRACE_LOG()
         status = rcStructFileBundle( host->conn, structFileBundleInp );
     } // else remote host
 
